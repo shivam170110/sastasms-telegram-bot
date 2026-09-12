@@ -16,7 +16,7 @@ from telegram.ext import (
 # ==========================================
 # 🔑 HARDCODED CREDENTIALS & SETTINGS
 # ==========================================
-BOT_TOKEN = "8849599952:AAHH6aFW4YyZKeoT9VubPxIvbIhPjZlA1SQ"
+BOT_TOKEN = "8849599952:AAHtd5gL1GbWNadv2njQsW5SnqANqJILcfs"
 SASTASMS_API_KEY = "stp_680975d2e24b68ca754ff0b20856d559e345D382bd9ff5ca"
 ADMIN_CHANNEL_ID = -1004499634002
 SUPPORT_USERNAME = "@WSPCS1"
