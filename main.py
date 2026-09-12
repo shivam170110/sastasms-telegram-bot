@@ -90,7 +90,7 @@ COUNTRY_PRICES = {
     "19": 199.0,  # 🇳🇬 Nigeria
     "20": 167.0,  # 🇲🇴 Macau
     "21": 173.0,  # 🇪🇬 Egypt
-    "22": 179.0,  # 🇮🇳 India
+    "22": 199.0,  # 🇮🇳 India
     "23": 3204.0, # 🇮🇪 Ireland
     "24": 213.0,  # 🇰🇭 Cambodia
     "25": 190.0,  # 🇱🇦 Laos
@@ -101,7 +101,7 @@ COUNTRY_PRICES = {
     "30": 156.0,  # 🇮🇶 Iraq
     "31": 132.0,  # 🇿🇦 South Africa
     "32": 213.0,  # 🇷🇴 Romania
-    "33": 75.0,   # 🇨🇴 Colombia
+    "33": 95.0,   # 🇨🇴 Colombia
     "34": 195.0,  # 🇪🇪 Estonia
     "35": 145.0,  # 🇦🇿 Azerbaijan
     "36": 112.0,  # 🇨🇦 Canada
