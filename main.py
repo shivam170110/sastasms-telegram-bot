@@ -3,6 +3,8 @@ import time
 import asyncio
 import logging
 import httpx
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import (
     ApplicationBuilder,
@@ -654,7 +656,21 @@ async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard = [[InlineKeyboardButton("💳 Deposit", callback_data="deposit"), InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]]
         await safe_send_or_edit(update, context, f"<b>👤 Profile</b>\n\nID: <code>{user_id}</code>\nBalance: ₹{bal:.2f}", InlineKeyboardMarkup(keyboard))
 
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot is alive!")
+
+def run_health_server():
+    port = int(os.environ.get("PORT", 10000))
+    server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
+    server.serve_forever()
+
 def main():
+    server_thread = threading.Thread(target=run_health_server, daemon=True)
+    server_thread.start()
+
     try:
         asyncio.get_event_loop()
     except RuntimeError:
