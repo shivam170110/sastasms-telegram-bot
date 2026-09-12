@@ -18,7 +18,7 @@ from telegram.ext import (
 # ==========================================
 # 🔑 HARDCODED CREDENTIALS & SETTINGS
 # ==========================================
-BOT_TOKEN = "8849599952:AAHtd5gL1GbWNadv2njQsW5SnqANqJILcfs"
+BOT_TOKEN = "8849599952:AAHH6aFW4YyZKeoT9VubPxIvbIhPjZlA1SQ"
 SASTASMS_API_KEY = "stp_680975d2e24b68ca754ff0b20856d559e345D382bd9ff5ca"
 ADMIN_CHANNEL_ID = -1004499634002
 SUPPORT_USERNAME = "@WSPCS1"
@@ -221,7 +221,7 @@ COUNTRY_PRICES = {
 DEFAULT_PRICE = 250.0  # Fallback price if any code is missing
 
 # ==========================================
-# 📡 SASTASMS API PROVIDER (Integrated)
+# 📡 SASTASMS API PROVIDER (Integrated with Balance Check)
 # ==========================================
 class SastaSMSProvider:
     def __init__(self, api_key: str):
@@ -237,13 +237,24 @@ class SastaSMSProvider:
             try:
                 response = await client.get(self.base_url, params=params, timeout=15)
                 text = response.text.strip()
+                
+                # Check explicitly for provider balance errors or fallback messages
+                if "NO_BALANCE" in text or "BAD_KEY" in text or "ERROR_SQL" in text:
+                    return {"status": "ERROR", "message": f"Provider balance is low or API error: {text}"}
+                
                 if text.startswith("ACCESS_NUMBER"):
                     parts = text.split(":")
-                    return {"status": "SUCCESS", "id": parts[1], "number": parts[2]}
-                elif "NO_NUMBERS" in text: return {"status": "ERROR", "message": "No numbers available right now."}
-                elif "NO_BALANCE" in text: return {"status": "ERROR", "message": "Provider API balance is low."}
-                else: return {"status": "ERROR", "message": text}
-            except Exception as e: return {"status": "ERROR", "message": str(e)}
+                    if len(parts) >= 3:
+                        return {"status": "SUCCESS", "id": parts[1], "number": parts[2]}
+                    else:
+                        return {"status": "ERROR", "message": f"Malformed provider response: {text}"}
+                elif "NO_NUMBERS" in text: 
+                    return {"status": "ERROR", "message": "No numbers available right now."}
+                else: 
+                    # If provider returns something unexpected like a fallback text/error for low balance
+                    return {"status": "ERROR", "message": f"Provider error: {text}"}
+            except Exception as e: 
+                return {"status": "ERROR", "message": str(e)}
 
     async def get_status(self, order_id: str):
         params = {"api_key": self.api_key, "action": "getStatus", "id": order_id}
@@ -578,7 +589,22 @@ async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]
             await safe_send_or_edit(update, context, text, InlineKeyboardMarkup(keyboard))
         else:
-            await safe_send_or_edit(update, context, f"❌ <b>Error:</b> {res.get('message', 'Out of stock.')}", InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back", callback_data="buy_menu_0")]]))
+            err_msg = res.get('message', 'Out of stock.')
+            # If provider fails due to insufficient balance or fallback number mismatch, show contact CS instruction
+            if "NO_BALANCE" in err_msg or "PROVIDER_ERROR" in err_msg or "ERROR" in err_msg:
+                user_friendly_text = (
+                    f"❌ <b>Purchase Failed</b>\n\n"
+                    f"<i>The requested country is currently unavailable due to provider limits.</i>\n\n"
+                    f"💬 <b>Please contact Customer Support:</b> {SUPPORT_USERNAME}"
+                )
+            else:
+                user_friendly_text = f"❌ <b>Error:</b> {err_msg}\n\n💬 Please contact support: {SUPPORT_USERNAME}"
+
+            await safe_send_or_edit(
+                update, context, 
+                user_friendly_text, 
+                InlineKeyboardMarkup([[InlineKeyboardButton("💬 Contact CS", url=f"https://t.me/{SUPPORT_USERNAME.lstrip('@')}")], [InlineKeyboardButton("🔙 Back", callback_data="buy_menu_0")]])
+            )
 
     elif data.startswith("refresh_"):
         parts = data.split("_")
