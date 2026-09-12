@@ -17,39 +17,50 @@ from telegram.ext import (
 )
 
 # ==========================================
-# 🔑 HARDCODED CREDENTIALS & SETTINGS
+# 🔑 CREDENTIALS & SETTINGS
 # ==========================================
 BOT_TOKEN = "8849599952:AAHtd5gL1GbWNadv2njQsW5SnqANqJILcfs"
 SASTASMS_API_KEY = "stp_680975d2e24b68ca754ff0b20856d559e345D382bd9ff5ca"
 ADMIN_CHANNEL_ID = -1004499634002
 SUPPORT_USERNAME = "@WSPCS1"
-BALANCE_FILE = "user_balances.json"
+
+# JSONBin.io Cloud Storage Credentials
+JSONBIN_BIN_ID = "6aa58b12ffd5d16053fef63e"
+JSONBIN_API_KEY = "$2a$10$1mqlsEiBEOr8/LOpCc09aeebMqgiBoKPuKYAnmvmeRomHUv1wJ7WK"
 
 logging.basicConfig(level=logging.INFO)
 
 # ==========================================
-# 💾 PERSISTENT BALANCE STORAGE FUNCTIONS
+# ☁️ CLOUD BALANCE STORAGE FUNCTIONS (JSONBin)
 # ==========================================
-def load_balances():
-    if os.path.exists(BALANCE_FILE):
-        try:
-            with open(BALANCE_FILE, "r") as f:
-                # Convert string keys back to integers for user IDs
-                data = json.load(f)
-                return {int(k): float(v) for k, v in data.items()}
-        except Exception as e:
-            logging.error(f"Error loading balances: {e}")
+def load_balances_sync():
+    url = f"https://api.jsonbin.io/v3/b/{JSONBIN_BIN_ID}/latest"
+    headers = {"X-Master-Key": JSONBIN_API_KEY}
+    try:
+        response = httpx.get(url, headers=headers, timeout=10)
+        if response.status_code == 200:
+            data = response.json().get("record", {})
+            # Convert string keys back to integers for Telegram user IDs
+            return {int(k): float(v) for k, v in data.items() if k.isdigit()}
+    except Exception as e:
+        logging.error(f"Error loading balances from cloud: {e}")
     return {}
 
-def save_balances():
+def save_balances_sync(balances_dict):
+    url = f"https://api.jsonbin.io/v3/b/{JSONBIN_BIN_ID}"
+    headers = {
+        "Content-Type": "application/json",
+        "X-Master-Key": JSONBIN_API_KEY
+    }
     try:
-        with open(BALANCE_FILE, "w") as f:
-            json.dump(user_balances, f)
+        # Convert integer user IDs to strings for valid JSON storage
+        payload = {str(k): v for k, v in balances_dict.items()}
+        httpx.put(url, headers=headers, json=payload, timeout=10)
     except Exception as e:
-        logging.error(f"Error saving balances: {e}")
+        logging.error(f"Error saving balances to cloud: {e}")
 
-# Load initial balances into memory
-user_balances = load_balances()
+# Load initial balances from cloud into memory
+user_balances = load_balances_sync()
 active_orders = {}  
 ITEMS_PER_PAGE = 15  
 
@@ -384,7 +395,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     if user.id not in user_balances:
         user_balances[user.id] = 0.0  
-        save_balances()
+        save_balances_sync(user_balances)
 
     context.user_data.clear()
 
@@ -546,7 +557,7 @@ async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parts = data.split("_")
         client_id, amount = int(parts[2]), float(parts[3])
         user_balances[client_id] = user_balances.get(client_id, 0.0) + amount
-        save_balances() # Save updated balances to disk
+        save_balances_sync(user_balances) # Save to cloud permanently
         await query.edit_message_caption(caption=f"{query.message.caption}\n\n✅ <b>APPROVED BY ADMIN</b>", parse_mode="HTML")
         try: await context.bot.send_message(chat_id=client_id, text=f"✅ <b>Deposit Approved!</b>\n₹{amount} has been added to your wallet.", parse_mode="HTML")
         except: pass
@@ -589,7 +600,7 @@ async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         if res.get("status") == "SUCCESS":
             user_balances[user_id] -= price
-            save_balances() # Save balance deduction
+            save_balances_sync(user_balances) # Save balance deduction to cloud
             order_id, number = res["id"], res["number"]
             
             active_orders[order_id] = {
@@ -660,7 +671,7 @@ async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             active_orders.pop(order_id, None)
             user_balances[user_id] += price
-            save_balances() # Save refund update
+            save_balances_sync(user_balances) # Save refund update to cloud
             await safe_send_or_edit(update, context, f"⚠️ <b>Order Cancelled/Expired:</b> ₹{price:.2f} refunded.")
 
     elif data.startswith("cancel_locked_"):
@@ -694,7 +705,7 @@ async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await sms_provider.set_status(order_id, status=8)
         
         user_balances[user_id] = user_balances.get(user_id, 0.0) + price
-        save_balances() # Save refund update
+        save_balances_sync(user_balances) # Save refund update to cloud
         active_orders.pop(order_id, None)
 
         await safe_send_or_edit(update, context, f"❌ <b>Order Cancelled Successfully!</b>\n\n₹{price:.2f} has been refunded to your wallet.", InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]]))
@@ -730,7 +741,7 @@ def main():
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
     app.add_handler(CallbackQueryHandler(button_router))
-    print("🚀 Fully Loaded Fixed Individual Pricing Bot Online!")
+    print("🚀 Fully Loaded Cloud-Synced Bot Online!")
     app.run_polling()
 
 if __name__ == "__main__":
