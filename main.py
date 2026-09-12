@@ -24,7 +24,7 @@ SUPPORT_USERNAME = "@WSPCS1"
 logging.basicConfig(level=logging.INFO)
 
 # ==========================================
-# 🏷️ MANUAL COUNTRY PRICES SECTION (Fully Updated for All 188 Codes)
+# 🏷️ MANUAL COUNTRY PRICES SECTION
 # ==========================================
 COUNTRY_PRICES = {
     "0": 250.0,   # 🇷🇺 Russia
@@ -214,7 +214,7 @@ COUNTRY_PRICES = {
     "184": 1940.0,# 🇹🇼 Taiwan
     "185": 1940.0,# 🇭🇰 Hong Kong
     "186": 375.0, # 🇲🇴 Macau
-    "187": 250.0  # 🇸🇬 Singapore
+    "187": 375.0  # 🇸🇬 Singapore
 }
 DEFAULT_PRICE = 250.0  # Fallback price if any code is missing
 
@@ -267,7 +267,7 @@ class SastaSMSProvider:
 sms_provider = SastaSMSProvider(api_key=SASTASMS_API_KEY)
 
 # ==========================================
-# 💾 BOT DATA & STATE (Full 187 Countries Catalog)
+# 💾 BOT DATA & STATE
 # ==========================================
 user_balances = {}
 active_orders = {}  
@@ -655,6 +655,11 @@ async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await safe_send_or_edit(update, context, f"<b>👤 Profile</b>\n\nID: <code>{user_id}</code>\nBalance: ₹{bal:.2f}", InlineKeyboardMarkup(keyboard))
 
 def main():
+    try:
+        asyncio.get_event_loop()
+    except RuntimeError:
+        asyncio.set_event_loop(asyncio.new_event_loop())
+
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
