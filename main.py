@@ -1,5 +1,6 @@
 import os
 import time
+import json
 import asyncio
 import logging
 import httpx
@@ -22,8 +23,35 @@ BOT_TOKEN = "8849599952:AAHtd5gL1GbWNadv2njQsW5SnqANqJILcfs"
 SASTASMS_API_KEY = "stp_680975d2e24b68ca754ff0b20856d559e345D382bd9ff5ca"
 ADMIN_CHANNEL_ID = -1004499634002
 SUPPORT_USERNAME = "@WSPCS1"
+BALANCE_FILE = "user_balances.json"
 
 logging.basicConfig(level=logging.INFO)
+
+# ==========================================
+# 💾 PERSISTENT BALANCE STORAGE FUNCTIONS
+# ==========================================
+def load_balances():
+    if os.path.exists(BALANCE_FILE):
+        try:
+            with open(BALANCE_FILE, "r") as f:
+                # Convert string keys back to integers for user IDs
+                data = json.load(f)
+                return {int(k): float(v) for k, v in data.items()}
+        except Exception as e:
+            logging.error(f"Error loading balances: {e}")
+    return {}
+
+def save_balances():
+    try:
+        with open(BALANCE_FILE, "w") as f:
+            json.dump(user_balances, f)
+    except Exception as e:
+        logging.error(f"Error saving balances: {e}")
+
+# Load initial balances into memory
+user_balances = load_balances()
+active_orders = {}  
+ITEMS_PER_PAGE = 15  
 
 # ==========================================
 # 🏷️ MANUAL COUNTRY PRICES SECTION
@@ -35,7 +63,7 @@ COUNTRY_PRICES = {
     "3": 250.0,   # 🇨🇳 China
     "4": 250.0,   # 🇵🇭 Philippines
     "5": 187.0,   # 🇲🇲 Myanmar
-    "6": 87.0,    # 🇲🇩 Indonesia
+    "6": 87.0,    # 🇲🇩 Moldova
     "7": 147.0,   # 🇲🇾 Malaysia
     "8": 159.0,   # 🇰🇪 Kenya
     "9": 132.0,   # 🇹🇿 Tanzania
@@ -218,10 +246,10 @@ COUNTRY_PRICES = {
     "186": 375.0, # 🇲🇴 Macau
     "187": 375.0  # 🇸🇬 Singapore
 }
-DEFAULT_PRICE = 250.0  # Fallback price if any code is missing
+DEFAULT_PRICE = 250.0  
 
 # ==========================================
-# 📡 SASTASMS API PROVIDER (Integrated with Balance Check)
+# 📡 SASTASMS API PROVIDER
 # ==========================================
 class SastaSMSProvider:
     def __init__(self, api_key: str):
@@ -238,7 +266,6 @@ class SastaSMSProvider:
                 response = await client.get(self.base_url, params=params, timeout=15)
                 text = response.text.strip()
                 
-                # Check explicitly for provider balance errors or fallback messages
                 if "NO_BALANCE" in text or "BAD_KEY" in text or "ERROR_SQL" in text:
                     return {"status": "ERROR", "message": f"Provider balance is low or API error: {text}"}
                 
@@ -251,7 +278,6 @@ class SastaSMSProvider:
                 elif "NO_NUMBERS" in text: 
                     return {"status": "ERROR", "message": "No numbers available right now."}
                 else: 
-                    # If provider returns something unexpected like a fallback text/error for low balance
                     return {"status": "ERROR", "message": f"Provider error: {text}"}
             except Exception as e: 
                 return {"status": "ERROR", "message": str(e)}
@@ -278,13 +304,6 @@ class SastaSMSProvider:
                 return str(e)
 
 sms_provider = SastaSMSProvider(api_key=SASTASMS_API_KEY)
-
-# ==========================================
-# 💾 BOT DATA & STATE
-# ==========================================
-user_balances = {}
-active_orders = {}  
-ITEMS_PER_PAGE = 15  
 
 MENU_BUTTONS = ["🛒 buy number", "💳 deposit", "👤 my profile", "📦 order history", "⚙️ discount", "💬 support", "🔍 search country"]
 
@@ -365,6 +384,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     if user.id not in user_balances:
         user_balances[user.id] = 0.0  
+        save_balances()
 
     context.user_data.clear()
 
@@ -526,6 +546,7 @@ async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parts = data.split("_")
         client_id, amount = int(parts[2]), float(parts[3])
         user_balances[client_id] = user_balances.get(client_id, 0.0) + amount
+        save_balances() # Save updated balances to disk
         await query.edit_message_caption(caption=f"{query.message.caption}\n\n✅ <b>APPROVED BY ADMIN</b>", parse_mode="HTML")
         try: await context.bot.send_message(chat_id=client_id, text=f"✅ <b>Deposit Approved!</b>\n₹{amount} has been added to your wallet.", parse_mode="HTML")
         except: pass
@@ -568,6 +589,7 @@ async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         if res.get("status") == "SUCCESS":
             user_balances[user_id] -= price
+            save_balances() # Save balance deduction
             order_id, number = res["id"], res["number"]
             
             active_orders[order_id] = {
@@ -590,7 +612,6 @@ async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await safe_send_or_edit(update, context, text, InlineKeyboardMarkup(keyboard))
         else:
             err_msg = res.get('message', 'Out of stock.')
-            # If provider fails due to insufficient balance or fallback number mismatch, show contact CS instruction
             if "NO_BALANCE" in err_msg or "PROVIDER_ERROR" in err_msg or "ERROR" in err_msg:
                 user_friendly_text = (
                     f"❌ <b>Purchase Failed</b>\n\n"
@@ -639,6 +660,7 @@ async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             active_orders.pop(order_id, None)
             user_balances[user_id] += price
+            save_balances() # Save refund update
             await safe_send_or_edit(update, context, f"⚠️ <b>Order Cancelled/Expired:</b> ₹{price:.2f} refunded.")
 
     elif data.startswith("cancel_locked_"):
@@ -672,6 +694,7 @@ async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await sms_provider.set_status(order_id, status=8)
         
         user_balances[user_id] = user_balances.get(user_id, 0.0) + price
+        save_balances() # Save refund update
         active_orders.pop(order_id, None)
 
         await safe_send_or_edit(update, context, f"❌ <b>Order Cancelled Successfully!</b>\n\n₹{price:.2f} has been refunded to your wallet.", InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]]))
