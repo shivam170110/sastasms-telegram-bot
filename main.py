@@ -526,16 +526,52 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
         text_msg = (
             f"👥 <b>Refer & Earn Milestones</b>\n\n"
             f"Invite valid users to unlock free accounts:\n"
-            f"• <b>20 Referrals:</b> Free Colombian Account 🇨🇴\n"
+            f"• <b>25 Referrals:</b> Free Colombian Account 🇨🇴\n"
             f"• <b>40 Referrals:</b> Free USA Account 🇺🇸\n"
             f"• <b>50 Referrals:</b> Free Indian Account 🇮🇳\n"
             f"• <b>More than 50?</b> Contact Support for custom rewards!\n\n"
-            f"📊 <b>Your Total Referrals:</b> {refs}\n\n"
+            f"⚠️ <i>Make sure you have done valid referrals! For redeem, contact customer support.</i>\n\n"
+            f"📊 <b>Your Total Valid Referrals:</b> {refs}\n\n"
             f"🔗 <b>Your Referral Link:</b>\n<code>{ref_link}</code>"
         )
         await update.message.reply_text(text_msg, parse_mode="HTML", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("💬 Contact Support", url=f"https://t.me/{SUPPORT_USERNAME.lstrip('@')}"), InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]]))
     elif text == "💬 Support":
         await update.message.reply_text(f"📞 <b>Contact Support:</b> {SUPPORT_USERNAME}", parse_mode="HTML")
+
+# ==========================================
+# 🛠️ ADMIN BALANCE DEDUCTION COMMAND
+# ==========================================
+async def deduct_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    
+    if len(context.args) < 2:
+        await update.message.reply_text("⚠️ <b>Usage:</b> <code>/deduct user_id amount</code>", parse_mode="HTML")
+        return
+
+    try:
+        target_user_id = int(context.args[0])
+        amount_to_deduct = float(context.args[1])
+    except ValueError:
+        await update.message.reply_text("❌ Invalid user ID or amount format.", parse_mode="HTML")
+        return
+
+    current_bal = user_balances.get(target_user_id, 0.0)
+    
+    if current_bal < amount_to_deduct:
+        await update.message.reply_text(f"⚠️ User only has ₹{current_bal:.2f}. Cannot deduct ₹{amount_to_deduct:.2f}.", parse_mode="HTML")
+        return
+
+    # Deduct balance and sync to cloud
+    user_balances[target_user_id] = current_bal - amount_to_deduct
+    save_data_sync(user_balances, user_referrers, referral_counts, user_usernames)
+
+    await update.message.reply_text(
+        f"✅ <b>Successfully Deducted!</b>\n\n"
+        f"• <b>User ID:</b> <code>{target_user_id}</code>\n"
+        f"• <b>Deducted:</b> ₹{amount_to_deduct:.2f}\n"
+        f"• <b>New Balance:</b> ₹{user_balances[target_user_id]:.2f}",
+        parse_mode="HTML"
+    )
 
 # ==========================================
 # 🎛️ CALLBACK ROUTER
@@ -569,11 +605,12 @@ async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         refs = referral_counts.get(user_id, 0)
         text_msg = (
             f"👥 <b>Refer & Earn Milestones</b>\n\n"
-            f"• <b>20 Referrals:</b> Free Colombian Account 🇨🇴\n"
+            f"• <b>25 Referrals:</b> Free Colombian Account 🇨🇴\n"
             f"• <b>40 Referrals:</b> Free USA Account 🇺🇸\n"
             f"• <b>50 Referrals:</b> Free Indian Account 🇮🇳\n"
             f"• <b>More:</b> Contact Support 💬\n\n"
-            f"📊 <b>Your Total Referrals:</b> {refs}\n\n"
+            f"⚠️ <i>Make sure you have done valid referrals! For redeem, contact customer support.</i>\n\n"
+            f"📊 <b>Your Total Valid Referrals:</b> {refs}\n\n"
             f"🔗 <b>Your Referral Link:</b>\n<code>{ref_link}</code>"
         )
         await safe_send_or_edit(update, context, text_msg, InlineKeyboardMarkup([[InlineKeyboardButton("💬 Contact Support", url=f"https://t.me/{SUPPORT_USERNAME.lstrip('@')}"), InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]]))
@@ -625,11 +662,11 @@ def main():
     threading.Thread(target=run_health_server, daemon=True).start()
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("deduct", deduct_balance))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
     app.add_handler(CallbackQueryHandler(button_router))
-    print("🚀 Bot Online with Bottom Refer & Earn and Gift Buttons!")
+    print("🚀 Bot Online with All Features & Balance Deduction Command!")
     
-    # Explicit loop configuration to prevent RuntimeError on Render
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     app.run_polling()
