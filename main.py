@@ -21,11 +21,11 @@ from telegram.ext import (
 # ==========================================
 BOT_TOKEN = "8849599952:AAHtd5gL1GbWNadv2njQsW5SnqANqJILcfs"
 SASTASMS_API_KEY = "stp_680975d2e24b68ca754ff0b20856d559e345D382bd9ff5ca"
-ADMIN_CHANNEL_ID = -1004499634002
+ADMIN_CHANNEL_ID = "@WHATSAPP_VAULT"
 SUPPORT_USERNAME = "@WSPCS01"
 
 # Force Subscription Channel ID (Bot must be an admin here)
-FORCE_SUB_CHANNEL = "@WHATSAPP_VAULT"
+FORCE_SUB_CHANNEL = -1003874345433
 
 # JSONBin.io Cloud Storage Credentials
 JSONBIN_BIN_ID = "6aa58b12ffd5d16053fef63e"
@@ -314,7 +314,7 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
                     f"• <b>User:</b> {user.first_name} ({username})\n"
                     f"• <b>ID:</b> <code>{user.id}</code>\n"
                     f"• <b>Amount Requested:</b> ₹{amount:.2f}\n\n"
-                    f"<i>Verify payment and use /add <user_id> <amount> to approve.</i>"
+                    f"<i>Verify payment and use /add &lt;user_id&gt; &lt;amount&gt; to approve.</i>"
                 ),
                 parse_mode="HTML"
             )
@@ -426,6 +426,33 @@ async def deduct_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="HTML"
     )
 
+async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("⚠️ <b>Usage:</b> <code>/broadcast Your message here</code>", parse_mode="HTML")
+        return
+
+    message_text = " ".join(context.args)
+    sent_count = 0
+    failed_count = 0
+    
+    all_users = set(list(user_balances.keys()) + list(user_usernames.keys()))
+    status_msg = await update.message.reply_text("📢 Broadcasting message to users...", parse_mode="HTML")
+    
+    for uid in all_users:
+        try:
+            await context.bot.send_message(chat_id=uid, text=message_text, parse_mode="HTML")
+            sent_count += 1
+            await asyncio.sleep(0.05)
+        except Exception:
+            failed_count += 1
+            
+    await status_msg.edit_text(
+        f"✅ <b>Broadcast Completed!</b>\n\n"
+        f"• <b>Successfully Sent:</b> {sent_count}\n"
+        f"• <b>Failed / Blocked:</b> {failed_count}",
+        parse_mode="HTML"
+    )
+
 async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     try: await query.answer()
@@ -519,9 +546,10 @@ def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("deduct", deduct_balance))
+    app.add_handler(CommandHandler("broadcast", broadcast))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
     app.add_handler(CallbackQueryHandler(button_router))
-    print("🚀 Bot Online with Admin Deposit Alerts & All Features!")
+    print("🚀 Bot Online with Broadcast Command & All Features!")
     
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
