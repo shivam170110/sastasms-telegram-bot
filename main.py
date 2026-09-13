@@ -458,12 +458,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_keyboard = [
         [KeyboardButton("🛒 Buy Number"), KeyboardButton("💳 Deposit")],
         [KeyboardButton("👤 My Profile"), KeyboardButton("📦 Order History")],
-        [KeyboardButton("👥 Refer & Earn"), KeyboardButton("💬 Support")]
+        [KeyboardButton("🎁 Gift"), KeyboardButton("👥 Refer & Earn")],
+        [KeyboardButton("💬 Support")]
     ]
     bottom_markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
     inline_keyboard = [
         [InlineKeyboardButton("🛒 Buy Number (180+ Countries)", callback_data="buy_menu_0")], 
-        [InlineKeyboardButton("👥 Refer & Earn Rewards", callback_data="refer_menu")]
+        [InlineKeyboardButton("🎁 Gift", callback_data="gift_menu"), InlineKeyboardButton("👥 Refer & Earn", callback_data="refer_menu")]
     ]
     
     if update.message:
@@ -516,6 +517,8 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
         refs = referral_counts.get(user_id, 0)
         username = user_usernames.get(user_id, "N/A")
         await update.message.reply_text(f"<b>👤 Profile</b>\n\nUsername: {username}\nID: <code>{user_id}</code>\nBalance: ₹{bal:.2f}\nValid Referrals: {refs}", parse_mode="HTML")
+    elif text == "🎁 Gift":
+        await update.message.reply_text("🎁 <b>Special Gift</b>\n\nCheck back later for promotional gifts and bonus vouchers, or contact support to redeem ongoing offers!", parse_mode="HTML", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]]))
     elif text == "👥 Refer & Earn":
         bot_username = context.bot.username
         ref_link = f"https://t.me/{bot_username}?start=ref_{user_id}"
@@ -558,6 +561,8 @@ async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data == "main_menu": await start(update, context)
     elif data.startswith("buy_menu"): await show_countries(update, context, page=0)
     elif data.startswith("cpage_"): await show_countries(update, context, page=int(data.split("_")[1]))
+    elif data == "gift_menu":
+        await safe_send_or_edit(update, context, "🎁 <b>Special Gift</b>\n\nCheck back later for promotional gifts and bonus vouchers, or contact support to redeem ongoing offers!", InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]]))
     elif data == "refer_menu":
         bot_username = context.bot.username
         ref_link = f"https://t.me/{bot_username}?start=ref_{user_id}"
@@ -622,7 +627,7 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
     app.add_handler(CallbackQueryHandler(button_router))
-    print("🚀 Bot Online with Username Tracking, 187 Countries, Force Sub & Referrals!")
+    print("🚀 Bot Online with Bottom Refer & Earn and Gift Buttons!")
     
     # Explicit loop configuration to prevent RuntimeError on Render
     loop = asyncio.new_event_loop()
