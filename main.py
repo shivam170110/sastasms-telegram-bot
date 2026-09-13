@@ -304,6 +304,23 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
             context.user_data["awaiting_deposit_amount"] = True
             return
 
+        try:
+            user = update.effective_user
+            username = f"@{user.username}" if user.username else f"{user.first_name} (No username)"
+            await context.bot.send_message(
+                chat_id=ADMIN_CHANNEL_ID,
+                text=(
+                    f"💳 <b>New Deposit Request!</b>\n\n"
+                    f"• <b>User:</b> {user.first_name} ({username})\n"
+                    f"• <b>ID:</b> <code>{user.id}</code>\n"
+                    f"• <b>Amount Requested:</b> ₹{amount:.2f}\n\n"
+                    f"<i>Verify payment and use /add <user_id> <amount> to approve.</i>"
+                ),
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            logging.error(f"Error sending deposit alert to admin channel: {e}")
+
         caption = (
             f"💳 <b>Deposit Request Received</b>\n\n"
             f"• <b>Amount:</b> ₹{amount:.2f}\n\n"
@@ -504,7 +521,7 @@ def main():
     app.add_handler(CommandHandler("deduct", deduct_balance))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
     app.add_handler(CallbackQueryHandler(button_router))
-    print("🚀 Bot Online with All Features & QR Code Deposit!")
+    print("🚀 Bot Online with Admin Deposit Alerts & All Features!")
     
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
