@@ -19,10 +19,13 @@ from telegram.ext import (
 # ==========================================
 # 🔑 CREDENTIALS & SETTINGS
 # ==========================================
-BOT_TOKEN = "8849599952:AAHtd5gL1GbWNadv2njQsW5SnqANqJILcfs"
+BOT_TOKEN = "8849599952:AAHH6aFW4YyZKeoT9VubPxIvbIhPjZlA1SQ"
 SASTASMS_API_KEY = "stp_680975d2e24b68ca754ff0b20856d559e345D382bd9ff5ca"
 ADMIN_CHANNEL_ID = -1004499634002
 SUPPORT_USERNAME = "@WSPCS1"
+
+# Force Subscription Channel ID (Bot must be an admin here)
+FORCE_SUB_CHANNEL = -1003874345433
 
 # JSONBin.io Cloud Storage Credentials
 JSONBIN_BIN_ID = "6aa58b12ffd5d16053fef63e"
@@ -31,41 +34,48 @@ JSONBIN_API_KEY = "$2a$10$1mqlsEiBEOr8/LOpCc09aeebMqgiBoKPuKYAnmvmeRomHUv1wJ7WK"
 logging.basicConfig(level=logging.INFO)
 
 # ==========================================
-# ☁️ CLOUD BALANCE STORAGE FUNCTIONS (JSONBin)
+# ☁️ CLOUD STORAGE FUNCTIONS (JSONBin)
 # ==========================================
-def load_balances_sync():
+def load_data_sync():
     url = f"https://api.jsonbin.io/v3/b/{JSONBIN_BIN_ID}/latest"
     headers = {"X-Master-Key": JSONBIN_API_KEY}
     try:
         response = httpx.get(url, headers=headers, timeout=10)
         if response.status_code == 200:
             data = response.json().get("record", {})
-            # Convert string keys back to integers for Telegram user IDs
-            return {int(k): float(v) for k, v in data.items() if k.isdigit()}
+            balances = {int(k): float(v) for k, v in data.get("balances", {}).items() if k.isdigit()}
+            referrals = {int(k): int(v) for k, v in data.get("referrals", {}).items() if k.isdigit()}
+            ref_counts = {int(k): int(v) for k, v in data.get("ref_counts", {}).items() if k.isdigit()}
+            usernames = {int(k): str(v) for k, v in data.get("usernames", {}).items() if k.isdigit()}
+            return balances, referrals, ref_counts, usernames
     except Exception as e:
-        logging.error(f"Error loading balances from cloud: {e}")
-    return {}
+        logging.error(f"Error loading data from cloud: {e}")
+    return {}, {}, {}, {}
 
-def save_balances_sync(balances_dict):
+def save_data_sync(balances_dict, referrals_dict, ref_counts_dict, usernames_dict):
     url = f"https://api.jsonbin.io/v3/b/{JSONBIN_BIN_ID}"
     headers = {
         "Content-Type": "application/json",
         "X-Master-Key": JSONBIN_API_KEY
     }
     try:
-        # Convert integer user IDs to strings for valid JSON storage
-        payload = {str(k): v for k, v in balances_dict.items()}
+        payload = {
+            "balances": {str(k): v for k, v in balances_dict.items()},
+            "referrals": {str(k): v for k, v in referrals_dict.items()},
+            "ref_counts": {str(k): v for k, v in ref_counts_dict.items()},
+            "usernames": {str(k): v for k, v in usernames_dict.items()}
+        }
         httpx.put(url, headers=headers, json=payload, timeout=10)
     except Exception as e:
-        logging.error(f"Error saving balances to cloud: {e}")
+        logging.error(f"Error saving data to cloud: {e}")
 
-# Load initial balances from cloud into memory
-user_balances = load_balances_sync()
+# Load persistent records into memory
+user_balances, user_referrers, referral_counts, user_usernames = load_data_sync()
 active_orders = {}  
 ITEMS_PER_PAGE = 15  
 
 # ==========================================
-# 🏷️ MANUAL COUNTRY PRICES SECTION
+# 🏷️ ALL 187 COUNTRY PRICES & NAMES
 # ==========================================
 COUNTRY_PRICES = {
     "0": 250.0,   # 🇷🇺 Russia
@@ -90,7 +100,7 @@ COUNTRY_PRICES = {
     "19": 199.0,  # 🇳🇬 Nigeria
     "20": 167.0,  # 🇲🇴 Macau
     "21": 173.0,  # 🇪🇬 Egypt
-    "22": 199.0,  # 🇮🇳 India
+    "22": 179.0,  # 🇮🇳 India
     "23": 3204.0, # 🇮🇪 Ireland
     "24": 213.0,  # 🇰🇭 Cambodia
     "25": 190.0,  # 🇱🇦 Laos
@@ -101,7 +111,7 @@ COUNTRY_PRICES = {
     "30": 156.0,  # 🇮🇶 Iraq
     "31": 132.0,  # 🇿🇦 South Africa
     "32": 213.0,  # 🇷🇴 Romania
-    "33": 95.0,   # 🇨🇴 Colombia
+    "33": 75.0,   # 🇨🇴 Colombia
     "34": 195.0,  # 🇪🇪 Estonia
     "35": 145.0,  # 🇦🇿 Azerbaijan
     "36": 112.0,  # 🇨🇦 Canada
@@ -259,65 +269,6 @@ COUNTRY_PRICES = {
 }
 DEFAULT_PRICE = 250.0  
 
-# ==========================================
-# 📡 SASTASMS API PROVIDER
-# ==========================================
-class SastaSMSProvider:
-    def __init__(self, api_key: str):
-        self.api_key = api_key
-        self.base_url = "https://sastasms.pro/stubs/handler_api.php"
-
-    async def get_country_prices(self, service: str = "wa") -> dict:
-        return {}
-
-    async def get_number(self, service: str = "wa", country: str = "0"):
-        params = {"api_key": self.api_key, "action": "getNumber", "service": service, "country": country}
-        async with httpx.AsyncClient() as client:
-            try:
-                response = await client.get(self.base_url, params=params, timeout=15)
-                text = response.text.strip()
-                
-                if "NO_BALANCE" in text or "BAD_KEY" in text or "ERROR_SQL" in text:
-                    return {"status": "ERROR", "message": f"Provider balance is low or API error: {text}"}
-                
-                if text.startswith("ACCESS_NUMBER"):
-                    parts = text.split(":")
-                    if len(parts) >= 3:
-                        return {"status": "SUCCESS", "id": parts[1], "number": parts[2]}
-                    else:
-                        return {"status": "ERROR", "message": f"Malformed provider response: {text}"}
-                elif "NO_NUMBERS" in text: 
-                    return {"status": "ERROR", "message": "No numbers available right now."}
-                else: 
-                    return {"status": "ERROR", "message": f"Provider error: {text}"}
-            except Exception as e: 
-                return {"status": "ERROR", "message": str(e)}
-
-    async def get_status(self, order_id: str):
-        params = {"api_key": self.api_key, "action": "getStatus", "id": order_id}
-        async with httpx.AsyncClient() as client:
-            try:
-                response = await client.get(self.base_url, params=params, timeout=12)
-                text = response.text.strip()
-                if text.startswith("STATUS_OK"): return {"status": "RECEIVED", "code": text.split(":")[1]}
-                elif text == "STATUS_WAIT_CODE": return {"status": "WAITING"}
-                else: return {"status": "OTHER", "message": text}
-            except Exception as e: return {"status": "ERROR", "message": str(e)}
-
-    async def set_status(self, order_id: str, status: int):
-        params = {"api_key": self.api_key, "action": "setStatus", "status": status, "id": order_id}
-        async with httpx.AsyncClient() as client:
-            try:
-                response = await client.get(self.base_url, params=params, timeout=12)
-                text = response.text.strip()
-                return text
-            except Exception as e:
-                return str(e)
-
-sms_provider = SastaSMSProvider(api_key=SASTASMS_API_KEY)
-
-MENU_BUTTONS = ["🛒 buy number", "💳 deposit", "👤 my profile", "📦 order history", "⚙️ discount", "💬 support", "🔍 search country"]
-
 COUNTRY_NAMES = {
     "0": "🇷🇺 Russia", "1": "🇺🇦 Ukraine", "2": "🇰🇿 Kazakhstan", "3": "🇨🇳 China",
     "4": "🇵🇭 Philippines", "5": "🇲🇲 Myanmar", "6": "🇮🇩 Indonesia", "7": "🇲🇾 Malaysia",
@@ -368,14 +319,24 @@ COUNTRY_NAMES = {
     "184": "🇹🇼 Taiwan", "185": "🇭🇰 Hong Kong", "186": "🇲🇴 Macau", "187": "🇸🇬 Singapore"
 }
 
-def get_all_country_list(prices_dict):
+def get_all_country_list():
     full_list = []
     for code, name in COUNTRY_NAMES.items():
         price = COUNTRY_PRICES.get(code, DEFAULT_PRICE)
-        if price <= 0:
-            price = DEFAULT_PRICE
         full_list.append({"name": f"{name} - ₹{price:.2f}", "code": code, "raw_name": name, "price": price})
     return full_list
+
+# ==========================================
+# 🔒 FORCE SUBSCRIPTION CHECK
+# ==========================================
+async def check_user_subscription(user_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    try:
+        member = await context.bot.get_chat_member(chat_id=FORCE_SUB_CHANNEL, user_id=user_id)
+        if member.status in ["member", "administrator", "creator"]:
+            return True
+    except Exception as e:
+        logging.error(f"Error checking sub status for user {user_id}: {e}")
+    return False
 
 async def safe_send_or_edit(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str, reply_markup: InlineKeyboardMarkup = None):
     query = update.callback_query
@@ -389,42 +350,130 @@ async def safe_send_or_edit(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         await update.message.reply_text(text, parse_mode="HTML", reply_markup=reply_markup)
 
 # ==========================================
+# 📡 SASTASMS API PROVIDER
+# ==========================================
+class SastaSMSProvider:
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+        self.base_url = "https://sastasms.pro/stubs/handler_api.php"
+
+    async def get_number(self, service: str = "wa", country: str = "0"):
+        params = {"api_key": self.api_key, "action": "getNumber", "service": service, "country": country}
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.get(self.base_url, params=params, timeout=15)
+                text = response.text.strip()
+                if text.startswith("ACCESS_NUMBER"):
+                    parts = text.split(":")
+                    if len(parts) >= 3:
+                        return {"status": "SUCCESS", "id": parts[1], "number": parts[2]}
+                return {"status": "ERROR", "message": f"Provider error: {text}"}
+            except Exception as e: 
+                return {"status": "ERROR", "message": str(e)}
+
+    async def get_status(self, order_id: str):
+        params = {"api_key": self.api_key, "action": "getStatus", "id": order_id}
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.get(self.base_url, params=params, timeout=12)
+                text = response.text.strip()
+                if text.startswith("STATUS_OK"): return {"status": "RECEIVED", "code": text.split(":")[1]}
+                elif text == "STATUS_WAIT_CODE": return {"status": "WAITING"}
+                else: return {"status": "OTHER", "message": text}
+            except Exception as e: return {"status": "ERROR", "message": str(e)}
+
+    async def set_status(self, order_id: str, status: int):
+        params = {"api_key": self.api_key, "action": "setStatus", "status": status, "id": order_id}
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.get(self.base_url, params=params, timeout=12)
+                return response.text.strip()
+            except Exception as e:
+                return str(e)
+
+sms_provider = SastaSMSProvider(api_key=SASTASMS_API_KEY)
+
+# ==========================================
 # 🤖 BOT COMMANDS & ROUTING
 # ==========================================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    if user.id not in user_balances:
-        user_balances[user.id] = 0.0  
-        save_balances_sync(user_balances)
+    user_id = user.id
+    username = f"@{user.username}" if user.username else f"{user.first_name} (No username)"
+
+    # Save Username tracking
+    if user_id not in user_usernames:
+        user_usernames[user_id] = username
+        save_data_sync(user_balances, user_referrers, referral_counts, user_usernames)
+        
+        # Notify Admin Channel about a new user
+        try:
+            await context.bot.send_message(
+                chat_id=ADMIN_CHANNEL_ID,
+                text=f"👤 <b>New Bot User Started!</b>\n\nName: {user.first_name}\nUsername: {username}\nID: <code>{user_id}</code>",
+                parse_mode="HTML"
+            )
+        except Exception:
+            pass
+
+    # Handle Referral Tracking
+    if context.args and len(context.args) > 0:
+        arg = context.args[0]
+        if arg.startswith("ref_") and user_id not in user_referrers:
+            try:
+                referrer_id = int(arg.split("_")[1])
+                if referrer_id != user_id:
+                    user_referrers[user_id] = referrer_id
+                    referral_counts[referrer_id] = referral_counts.get(referrer_id, 0) + 1
+                    save_data_sync(user_balances, user_referrers, referral_counts, user_usernames)
+            except Exception:
+                pass
+
+    # Force Subscription Validation
+    is_subbed = await check_user_subscription(user_id, context)
+    if not is_subbed:
+        try:
+            chat_info = await context.bot.get_chat(FORCE_SUB_CHANNEL)
+            channel_invite_link = chat_info.invite_link or (f"https://t.me/{chat_info.username}" if chat_info.username else f"https://t.me/c/{str(FORCE_SUB_CHANNEL).replace('-100', '')}/1")
+        except Exception:
+            channel_invite_link = "https://t.me/"
+
+        sub_markup = InlineKeyboardMarkup([
+            [InlineKeyboardButton("📢 Join Channel", url=channel_invite_link)],
+            [InlineKeyboardButton("✅ I Have Joined", callback_data="check_sub")]
+        ])
+        text = "⚠️ <b>Access Denied!</b>\n\nYou must join our official channel first to use this bot. Please join and click 'I Have Joined'."
+        if update.message:
+            await update.message.reply_text(text, parse_mode="HTML", reply_markup=sub_markup)
+        else:
+            await safe_send_or_edit(update, context, text, sub_markup)
+        return
+
+    if user_id not in user_balances:
+        user_balances[user_id] = 0.0  
+        save_data_sync(user_balances, user_referrers, referral_counts, user_usernames)
 
     context.user_data.clear()
 
     reply_keyboard = [
         [KeyboardButton("🛒 Buy Number"), KeyboardButton("💳 Deposit")],
         [KeyboardButton("👤 My Profile"), KeyboardButton("📦 Order History")],
-        [KeyboardButton("⚙️ Discount"), KeyboardButton("💬 Support")]
+        [KeyboardButton("👥 Refer & Earn"), KeyboardButton("💬 Support")]
     ]
     bottom_markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
-    
-    inline_keyboard = [[InlineKeyboardButton("🛒 Buy Number (180+ Countries)", callback_data="buy_menu_0")], [InlineKeyboardButton("🔍 Search Country", callback_data="search_country")]]
+    inline_keyboard = [
+        [InlineKeyboardButton("🛒 Buy Number (180+ Countries)", callback_data="buy_menu_0")], 
+        [InlineKeyboardButton("👥 Refer & Earn Rewards", callback_data="refer_menu")]
+    ]
     
     if update.message:
         await update.message.reply_text("Loading Bot Menu...", reply_markup=bottom_markup)
-        await update.message.reply_text(f"👋 Welcome, <b>{user.first_name}</b>!\n\nSelect an option to buy virtual numbers across 180+ countries:", parse_mode="HTML", reply_markup=InlineKeyboardMarkup(inline_keyboard))
+        await update.message.reply_text(f"👋 Welcome, <b>{user.first_name}</b>!\n\nSelect an option below:", parse_mode="HTML", reply_markup=InlineKeyboardMarkup(inline_keyboard))
     elif update.callback_query:
-        await safe_send_or_edit(update, context, f"👋 Welcome, <b>{user.first_name}</b>!\n\nSelect an option to buy virtual numbers across 180+ countries:", InlineKeyboardMarkup(inline_keyboard))
-
-async def start_deposit_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    if query: await query.answer()
-    
-    context.user_data["awaiting_deposit_amount"] = True
-    text = "💳 <b>Deposit Funds</b>\n\nHow much money do you want to deposit?\n\n<i>👉 Please type the amount in chat (e.g., 100):</i>"
-    await safe_send_or_edit(update, context, text, InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Cancel", callback_data="main_menu")]]))
+        await safe_send_or_edit(update, context, f"👋 Welcome, <b>{user.first_name}</b>!\n\nSelect an option below:", InlineKeyboardMarkup(inline_keyboard))
 
 async def show_countries(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int = 0):
-    prices = await sms_provider.get_country_prices(service="wa")
-    all_countries = get_all_country_list(prices)
+    all_countries = get_all_country_list()
     total_pages = max(1, (len(all_countries) + ITEMS_PER_PAGE - 1) // ITEMS_PER_PAGE)
     page = max(0, min(page, total_pages - 1))
     
@@ -444,107 +493,49 @@ async def show_countries(update: Update, context: ContextTypes.DEFAULT_TYPE, pag
     if page < total_pages - 1: nav_row.append(InlineKeyboardButton("Next ➡️", callback_data=f"cpage_{page + 1}"))
     keyboard.append(nav_row)
 
-    if total_pages > 3: keyboard.append([InlineKeyboardButton("⏮️ Page 1", callback_data="cpage_0"), InlineKeyboardButton("↔️ Mid", callback_data=f"cpage_{total_pages // 2}"), InlineKeyboardButton("⏭️ End", callback_data=f"cpage_{total_pages - 1}")])
-    keyboard.append([InlineKeyboardButton("🔍 Search Country", callback_data="search_country")])
+    if total_pages > 3: keyboard.append([InlineKeyboardButton("⏮️ Page 1", callback_data="cpage_0"), InlineKeyboardButton("⏭️ End", callback_data=f"cpage_{total_pages - 1}")])
     keyboard.append([InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")])
 
     await safe_send_or_edit(update, context, f"<b>🌍 Select Country ({len(all_countries)} Available):</b>\n<i>Page {page + 1} of {total_pages}</i>", InlineKeyboardMarkup(keyboard))
 
-# ==========================================
-# 📸 PHOTO HANDLER (Deposit Screenshot Flow)
-# ==========================================
-async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if context.user_data.get("awaiting_deposit_photo"):
-        amount = context.user_data.get("deposit_amount", 0)
-        user = update.effective_user
-        photo_file_id = update.message.photo[-1].file_id
-
-        caption = f"🚨 <b>NEW DEPOSIT REQUEST</b>\n\n👤 <b>User:</b> {user.first_name} (ID: <code>{user.id}</code>)\n💰 <b>Claimed Amount:</b> ₹{amount}"
-        keyboard = [
-            [InlineKeyboardButton(f"✅ Approve ₹{amount}", callback_data=f"admin_approve_{user.id}_{amount}")],
-            [InlineKeyboardButton("❌ Reject", callback_data=f"admin_reject_{user.id}")]
-        ]
-
-        try:
-            await context.bot.send_photo(
-                chat_id=ADMIN_CHANNEL_ID,
-                photo=photo_file_id,
-                caption=caption,
-                parse_mode="HTML",
-                reply_markup=InlineKeyboardMarkup(keyboard)
-            )
-            await update.message.reply_text(f"✅ <b>Screenshot Uploaded!</b>\nYour deposit request for ₹{amount} has been sent to the Admin.\n\nYour balance will update automatically upon approval.", parse_mode="HTML")
-        except Exception as e:
-            print(f"DEBUG ADMIN CHANNEL SEND ERROR: {e}")
-            await update.message.reply_text(f"❌ <b>Error dispatching to admin channel:</b> <code>{e}</code>", parse_mode="HTML")
-            
-        context.user_data["awaiting_deposit_photo"] = False
-
-# ==========================================
-# ✍️ TEXT HANDLER
-# ==========================================
 async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text.strip()
-    text_lower = text.lower()
     user_id = update.effective_user.id
+    if not await check_user_subscription(user_id, context):
+        await update.message.reply_text("⚠️ Please join our official channel first, then send /start again.")
+        return
 
-    if context.user_data.get("awaiting_deposit_amount"):
-        try:
-            amount = float(text)
-            if amount < 1: raise ValueError
-            context.user_data["deposit_amount"] = amount
-            context.user_data["awaiting_deposit_amount"] = False
-            context.user_data["awaiting_deposit_photo"] = True
-            
-            msg_text = f"💳 <b>Deposit ₹{amount}</b>\n\n<b>Scan the QR code below to pay via UPI:</b>\n<i>After paying, send the successful payment screenshot here.</i>"
-            qr_path = "qr_code.png"
-            if os.path.exists(qr_path):
-                with open(qr_path, "rb") as photo:
-                    await update.message.reply_photo(photo=photo, caption=msg_text, parse_mode="HTML")
-            else:
-                await update.message.reply_text(f"{msg_text}\n\n⚠️ (Admin: qr_code.png is missing from folder)", parse_mode="HTML")
-            return
-        except ValueError:
-            await update.message.reply_text("❌ Please enter a valid amount greater than 0.")
-            return
+    text = update.message.text.strip()
 
     if text == "🛒 Buy Number":
         await show_countries(update, context, page=0)
     elif text == "💳 Deposit":
-        await start_deposit_flow(update, context)
+        context.user_data["awaiting_deposit_amount"] = True
+        await update.message.reply_text("💳 <b>Deposit Funds</b>\n\nEnter the amount to deposit:", parse_mode="HTML", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Cancel", callback_data="main_menu")]]))
     elif text == "👤 My Profile":
         bal = user_balances.get(user_id, 0.0)
-        await update.message.reply_text(f"<b>👤 Profile</b>\n\nID: <code>{user_id}</code>\nBalance: ₹{bal:.2f}", parse_mode="HTML")
+        refs = referral_counts.get(user_id, 0)
+        username = user_usernames.get(user_id, "N/A")
+        await update.message.reply_text(f"<b>👤 Profile</b>\n\nUsername: {username}\nID: <code>{user_id}</code>\nBalance: ₹{bal:.2f}\nValid Referrals: {refs}", parse_mode="HTML")
+    elif text == "👥 Refer & Earn":
+        bot_username = context.bot.username
+        ref_link = f"https://t.me/{bot_username}?start=ref_{user_id}"
+        refs = referral_counts.get(user_id, 0)
+        text_msg = (
+            f"👥 <b>Refer & Earn Milestones</b>\n\n"
+            f"Invite valid users to unlock free accounts:\n"
+            f"• <b>20 Referrals:</b> Free Colombian Account 🇨🇴\n"
+            f"• <b>40 Referrals:</b> Free USA Account 🇺🇸\n"
+            f"• <b>50 Referrals:</b> Free Indian Account 🇮🇳\n"
+            f"• <b>More than 50?</b> Contact Support for custom rewards!\n\n"
+            f"📊 <b>Your Total Referrals:</b> {refs}\n\n"
+            f"🔗 <b>Your Referral Link:</b>\n<code>{ref_link}</code>"
+        )
+        await update.message.reply_text(text_msg, parse_mode="HTML", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("💬 Contact Support", url=f"https://t.me/{SUPPORT_USERNAME.lstrip('@')}"), InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]]))
     elif text == "💬 Support":
-        await update.message.reply_text(f"📞 <b>Contact Support:</b>\n\nPlease reach out to our admin at: <b>{SUPPORT_USERNAME}</b>", parse_mode="HTML")
-    elif text == "⚙️ Discount":
-        await update.message.reply_text("❌ No discount available at this moment.", parse_mode="HTML")
-    elif text == "📦 Order History":
-        await update.message.reply_text("📦 <b>Order History</b>\n\nYour recently purchased numbers will appear here.", parse_mode="HTML")
-
-    elif context.user_data.get("awaiting_search"):
-        if any(mb in text_lower for mb in MENU_BUTTONS):
-            context.user_data["awaiting_search"] = False
-            return
-        context.user_data["awaiting_search"] = False
-        prices = await sms_provider.get_country_prices(service="wa")
-        matches = [c for c in get_all_country_list(prices) if text_lower in c["raw_name"].lower()]
-        if not matches:
-            await update.message.reply_text(f"❌ No country found for '<b>{text}</b>'.", parse_mode="HTML", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]]))
-            return
-
-        keyboard = []
-        for i in range(0, len(matches), 3):
-            row = []
-            for j in range(3):
-                if i + j < len(matches):
-                    row.append(InlineKeyboardButton(matches[i+j]["raw_name"], callback_data=f"prep_buy_{matches[i+j]['code']}_{matches[i+j]['price']}"))
-            keyboard.append(row)
-        keyboard.append([InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")])
-        await update.message.reply_text(f"🎯 <b>Found {len(matches)} results:</b>", parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+        await update.message.reply_text(f"📞 <b>Contact Support:</b> {SUPPORT_USERNAME}", parse_mode="HTML")
 
 # ==========================================
-# 🎛️ INLINE CALLBACK ROUTER
+# 🎛️ CALLBACK ROUTER
 # ==========================================
 async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -553,42 +544,46 @@ async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = query.data
     user_id = query.from_user.id
 
-    if data.startswith("admin_approve_"):
-        parts = data.split("_")
-        client_id, amount = int(parts[2]), float(parts[3])
-        user_balances[client_id] = user_balances.get(client_id, 0.0) + amount
-        save_balances_sync(user_balances) # Save to cloud permanently
-        await query.edit_message_caption(caption=f"{query.message.caption}\n\n✅ <b>APPROVED BY ADMIN</b>", parse_mode="HTML")
-        try: await context.bot.send_message(chat_id=client_id, text=f"✅ <b>Deposit Approved!</b>\n₹{amount} has been added to your wallet.", parse_mode="HTML")
-        except: pass
+    if data == "check_sub":
+        if await check_user_subscription(user_id, context):
+            await start(update, context)
+        else:
+            await query.answer("❌ You have not joined the channel yet!", show_alert=True)
         return
-    elif data.startswith("admin_reject_"):
-        client_id = int(data.split("_")[2])
-        await query.edit_message_caption(caption=f"{query.message.caption}\n\n❌ <b>REJECTED BY ADMIN</b>", parse_mode="HTML")
-        try: await context.bot.send_message(chat_id=client_id, text=f"❌ <b>Deposit Rejected.</b>\nPlease contact {SUPPORT_USERNAME} if this is a mistake.", parse_mode="HTML")
-        except: pass
+
+    if not await check_user_subscription(user_id, context):
+        await query.answer("⚠️ Please join the channel first!", show_alert=True)
         return
 
     if data == "main_menu": await start(update, context)
     elif data.startswith("buy_menu"): await show_countries(update, context, page=0)
     elif data.startswith("cpage_"): await show_countries(update, context, page=int(data.split("_")[1]))
-    elif data == "deposit": await start_deposit_flow(update, context)
-    elif data == "search_country":
-        context.user_data["awaiting_search"] = True
-        await safe_send_or_edit(update, context, "🔍 Type the country name in chat:", InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Cancel", callback_data="main_menu")]]))
+    elif data == "refer_menu":
+        bot_username = context.bot.username
+        ref_link = f"https://t.me/{bot_username}?start=ref_{user_id}"
+        refs = referral_counts.get(user_id, 0)
+        text_msg = (
+            f"👥 <b>Refer & Earn Milestones</b>\n\n"
+            f"• <b>20 Referrals:</b> Free Colombian Account 🇨🇴\n"
+            f"• <b>40 Referrals:</b> Free USA Account 🇺🇸\n"
+            f"• <b>50 Referrals:</b> Free Indian Account 🇮🇳\n"
+            f"• <b>More:</b> Contact Support 💬\n\n"
+            f"📊 <b>Your Total Referrals:</b> {refs}\n\n"
+            f"🔗 <b>Your Referral Link:</b>\n<code>{ref_link}</code>"
+        )
+        await safe_send_or_edit(update, context, text_msg, InlineKeyboardMarkup([[InlineKeyboardButton("💬 Contact Support", url=f"https://t.me/{SUPPORT_USERNAME.lstrip('@')}"), InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]]))
     
     elif data.startswith("prep_buy_"):
         parts = data.split("_")
         country_code, price = parts[2], float(parts[3])
         current_bal = user_balances.get(user_id, 0.0)
-        country_name = COUNTRY_NAMES.get(country_code, "Unknown")
         
         if current_bal < price:
-            await safe_send_or_edit(update, context, f"⚠️ <b>Insufficient Balance!</b>\n\nPrice: ₹{price:.2f}\nBalance: ₹{current_bal:.2f}\n\n❌ Deposit funds first.", InlineKeyboardMarkup([[InlineKeyboardButton("💳 Deposit Funds", callback_data="deposit")]]))
+            await safe_send_or_edit(update, context, f"⚠️ <b>Insufficient Balance!</b>\n\nPrice: ₹{price:.2f}\nBalance: ₹{current_bal:.2f}", InlineKeyboardMarkup([[InlineKeyboardButton("💳 Deposit Funds", callback_data="deposit")]]))
             return
             
         keyboard = [[InlineKeyboardButton("✅ Confirm Purchase", callback_data=f"confirm_buy_{country_code}_{price}")], [InlineKeyboardButton("❌ Cancel", callback_data="buy_menu_0")]]
-        await safe_send_or_edit(update, context, f"🛒 <b>Confirm Purchase:</b>\n\n• <b>Country:</b> {country_name}\n• <b>Price:</b> ₹{price:.2f}\n• <b>Balance:</b> ₹{current_bal:.2f}", InlineKeyboardMarkup(keyboard))
+        await safe_send_or_edit(update, context, f"🛒 <b>Confirm Purchase:</b>\n• <b>Price:</b> ₹{price:.2f}", InlineKeyboardMarkup(keyboard))
         
     elif data.startswith("confirm_buy_"):
         parts = data.split("_")
@@ -600,121 +595,15 @@ async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         if res.get("status") == "SUCCESS":
             user_balances[user_id] -= price
-            save_balances_sync(user_balances) # Save balance deduction to cloud
+            save_data_sync(user_balances, user_referrers, referral_counts, user_usernames)
             order_id, number = res["id"], res["number"]
+            active_orders[order_id] = {"user_id": user_id, "price": price, "time": time.time()}
             
-            active_orders[order_id] = {
-                "user_id": user_id,
-                "price": price,
-                "time": time.time()
-            }
-            
-            text = (
-                f"✅ <b>Number Issued!</b>\n\n"
-                f"📱 <b>Phone:</b> <code>+{number}</code>\n"
-                f"🆔 <b>Order:</b> <code>{order_id}</code>\n\n"
-                f"⏳ <i>Waiting for SMS...</i>\n"
-                f"⚠️ <i>Cancel & Refund button will unlock after 20 minutes.</i>"
-            )
-            keyboard = [
-                [InlineKeyboardButton("🔄 Refresh OTP Status", callback_data=f"refresh_{order_id}_{number}_{price}")],
-                [InlineKeyboardButton("⏳ Cancel & Refund (Locked)", callback_data=f"cancel_locked_{order_id}")]
-            ]
+            text = f"✅ <b>Number Issued!</b>\n\n📱 <b>Phone:</b> <code>+{number}</code>\n🆔 <b>Order:</b> <code>{order_id}</code>"
+            keyboard = [[InlineKeyboardButton("🔄 Refresh OTP Status", callback_data=f"refresh_{order_id}_{number}_{price}")]]
             await safe_send_or_edit(update, context, text, InlineKeyboardMarkup(keyboard))
         else:
-            err_msg = res.get('message', 'Out of stock.')
-            if "NO_BALANCE" in err_msg or "PROVIDER_ERROR" in err_msg or "ERROR" in err_msg:
-                user_friendly_text = (
-                    f"❌ <b>Purchase Failed</b>\n\n"
-                    f"<i>The requested country is currently unavailable due to provider limits.</i>\n\n"
-                    f"💬 <b>Please contact Customer Support:</b> {SUPPORT_USERNAME}"
-                )
-            else:
-                user_friendly_text = f"❌ <b>Error:</b> {err_msg}\n\n💬 Please contact support: {SUPPORT_USERNAME}"
-
-            await safe_send_or_edit(
-                update, context, 
-                user_friendly_text, 
-                InlineKeyboardMarkup([[InlineKeyboardButton("💬 Contact CS", url=f"https://t.me/{SUPPORT_USERNAME.lstrip('@')}")], [InlineKeyboardButton("🔙 Back", callback_data="buy_menu_0")]])
-            )
-
-    elif data.startswith("refresh_"):
-        parts = data.split("_")
-        order_id, number, price = parts[1], parts[2], float(parts[3])
-        status_res = await sms_provider.get_status(order_id)
-        
-        if status_res.get("status") == "RECEIVED":
-            active_orders.pop(order_id, None)
-            await safe_send_or_edit(update, context, f"🎉 <b>OTP Received!</b>\n\n📱 <b>Phone:</b> <code>+{number}</code>\n💬 <b>OTP Code:</b> <code>{status_res.get('code')}</code>")
-        elif status_res.get("status") == "WAITING":
-            order_info = active_orders.get(order_id)
-            elapsed = time.time() - order_info["time"] if order_info else 0
-            
-            keyboard = [[InlineKeyboardButton("🔄 Refresh OTP Status", callback_data=f"refresh_{order_id}_{number}_{price}")]]
-            if elapsed >= 1200:
-                keyboard.append([InlineKeyboardButton("❌ Cancel & Refund", callback_data=f"cancel_order_{order_id}_{price}")])
-                msg_suffix = "\n\n🟢 <i>Cancel & Refund is now available!</i>"
-            else:
-                remaining_mins = int((1200 - elapsed) / 60) + 1
-                keyboard.append([InlineKeyboardButton(f"⏳ Cancel & Refund (Unlocks in ~{remaining_mins}m)", callback_data=f"cancel_locked_{order_id}")])
-                msg_suffix = f"\n\n⏳ <i>Waiting for SMS... Unlocks in ~{remaining_mins} min.</i>"
-
-            try:
-                await query.edit_message_text(
-                    f"✅ <b>Number Issued!</b>\n\n📱 <b>Phone:</b> <code>+{number}</code>\n🆔 <b>Order:</b> <code>{order_id}</code>{msg_suffix}",
-                    parse_mode="HTML",
-                    reply_markup=InlineKeyboardMarkup(keyboard)
-                )
-            except:
-                try: await query.answer("Still waiting... No SMS yet.", show_alert=False)
-                except: pass
-        else:
-            active_orders.pop(order_id, None)
-            user_balances[user_id] += price
-            save_balances_sync(user_balances) # Save refund update to cloud
-            await safe_send_or_edit(update, context, f"⚠️ <b>Order Cancelled/Expired:</b> ₹{price:.2f} refunded.")
-
-    elif data.startswith("cancel_locked_"):
-        order_id = data.split("_")[2]
-        order_info = active_orders.get(order_id)
-        if order_info:
-            elapsed = time.time() - order_info["time"]
-            if elapsed < 1200:
-                remaining_mins = int((1200 - elapsed) / 60) + 1
-                try: await query.answer(f"⚠️ Please wait {remaining_mins} more minutes before cancelling.", show_alert=True)
-                except: pass
-                return
-        try: await query.answer("⚠️ Cancel button is now unlocked! Please click Refresh OTP Status to see it.", show_alert=True)
-        except: pass
-
-    elif data.startswith("cancel_order_"):
-        parts = data.split("_")
-        order_id, price = parts[2], float(parts[3])
-        
-        order_info = active_orders.get(order_id)
-        if not order_info:
-            await query.answer("⚠️ Order not found or already processed.", show_alert=True)
-            return
-
-        elapsed = time.time() - order_info["time"]
-        if elapsed < 1200:
-            remaining_mins = int((1200 - elapsed) / 60) + 1
-            await query.answer(f"❌ Cannot cancel yet. Please wait {remaining_mins} more minutes.", show_alert=True)
-            return
-
-        await sms_provider.set_status(order_id, status=8)
-        
-        user_balances[user_id] = user_balances.get(user_id, 0.0) + price
-        save_balances_sync(user_balances) # Save refund update to cloud
-        active_orders.pop(order_id, None)
-
-        await safe_send_or_edit(update, context, f"❌ <b>Order Cancelled Successfully!</b>\n\n₹{price:.2f} has been refunded to your wallet.", InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]]))
-
-    elif data == "profile":
-        user_id = query.from_user.id
-        bal = user_balances.get(user_id, 0.0)
-        keyboard = [[InlineKeyboardButton("💳 Deposit", callback_data="deposit"), InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]]
-        await safe_send_or_edit(update, context, f"<b>👤 Profile</b>\n\nID: <code>{user_id}</code>\nBalance: ₹{bal:.2f}", InlineKeyboardMarkup(keyboard))
+            await safe_send_or_edit(update, context, f"❌ <b>Error:</b> {res.get('message', 'Out of stock.')}", InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back", callback_data="buy_menu_0")]]))
 
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -728,20 +617,12 @@ def run_health_server():
     server.serve_forever()
 
 def main():
-    server_thread = threading.Thread(target=run_health_server, daemon=True)
-    server_thread.start()
-
-    try:
-        asyncio.get_event_loop()
-    except RuntimeError:
-        asyncio.set_event_loop(asyncio.new_event_loop())
-
+    threading.Thread(target=run_health_server, daemon=True).start()
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
     app.add_handler(CallbackQueryHandler(button_router))
-    print("🚀 Fully Loaded Cloud-Synced Bot Online!")
+    print("🚀 Bot Online with Username Tracking, 187 Countries, Force Sub & Referrals!")
     app.run_polling()
 
 if __name__ == "__main__":
