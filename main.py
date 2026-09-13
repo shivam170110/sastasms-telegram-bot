@@ -21,11 +21,13 @@ from telegram.ext import (
 # ==========================================
 BOT_TOKEN = "8849599952:AAHtd5gL1GbWNadv2njQsW5SnqANqJILcfs"
 SASTASMS_API_KEY = "stp_680975d2e24b68ca754ff0b20856d559e345D382bd9ff5ca"
-ADMIN_CHANNEL_ID = "@WHATSAPP_VAULT"
+
+# Your private admin channel ID for deposit requests and start notifications
+ADMIN_CHANNEL_ID = -1004499634002 
 SUPPORT_USERNAME = "@WSPCS01"
 
-# Force Subscription Channel ID (Bot must be an admin here)
-FORCE_SUB_CHANNEL = -1003874345433
+# Your public force subscription channel username
+FORCE_SUB_CHANNEL = "@WHATSAPP_VAULT" 
 
 # JSONBin.io Cloud Storage Credentials
 JSONBIN_BIN_ID = "6aa58b12ffd5d16053fef63e"
@@ -397,6 +399,30 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
     elif text == "💬 Support":
         await update.message.reply_text(f"📞 <b>Contact Support:</b> {SUPPORT_USERNAME}", parse_mode="HTML")
 
+async def add_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if len(context.args) < 2:
+        await update.message.reply_text("⚠️ <b>Usage:</b> <code>/add user_id amount</code>", parse_mode="HTML")
+        return
+
+    try:
+        target_user_id = int(context.args[0])
+        amount_to_add = float(context.args[1])
+    except ValueError:
+        await update.message.reply_text("❌ Invalid user ID or amount format.", parse_mode="HTML")
+        return
+
+    current_bal = user_balances.get(target_user_id, 0.0)
+    user_balances[target_user_id] = current_bal + amount_to_add
+    save_data_sync(user_balances, user_referrers, referral_counts, user_usernames)
+
+    await update.message.reply_text(
+        f"✅ <b>Successfully Credited!</b>\n\n"
+        f"• <b>User ID:</b> <code>{target_user_id}</code>\n"
+        f"• <b>Added:</b> ₹{amount_to_add:.2f}\n"
+        f"• <b>New Balance:</b> ₹{user_balances[target_user_id]:.2f}",
+        parse_mode="HTML"
+    )
+
 async def deduct_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     if len(context.args) < 2:
@@ -545,11 +571,12 @@ def main():
     threading.Thread(target=run_health_server, daemon=True).start()
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("add", add_balance))
     app.add_handler(CommandHandler("deduct", deduct_balance))
     app.add_handler(CommandHandler("broadcast", broadcast))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
     app.add_handler(CallbackQueryHandler(button_router))
-    print("🚀 Bot Online with Broadcast Command & All Features!")
+    print("🚀 Bot Online with Public Force Sub, Private Admin Alerts, and Balance Addition (/add)! Configuration verified.")
     
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
