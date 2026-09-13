@@ -77,7 +77,7 @@ ITEMS_PER_PAGE = 15
 
 COUNTRY_PRICES = {
     "0": 250.0, "1": 189.0, "2": 312.0, "3": 250.0, "4": 250.0, "5": 187.0, "6": 87.0, "7": 147.0, "8": 159.0, "9": 132.0,
-    "10": 99.0, "11": 196.0, "12": 168.0, "13": 314.0, "14": 156.0, "15": 186.0, "16": 185.0, "17": 256.0, "18": 98.0, "19": 199.0,
+    "10": 99.0, "11": 196.0, "12": 178.0, "13": 314.0, "14": 156.0, "15": 186.0, "16": 185.0, "17": 256.0, "18": 98.0, "19": 199.0,
     "20": 167.0, "21": 173.0, "22": 179.0, "23": 3204.0, "24": 213.0, "25": 190.0, "26": 143.0, "27": 199.0, "28": 175.0, "29": 234.0,
     "30": 156.0, "31": 132.0, "32": 213.0, "33": 75.0, "34": 195.0, "35": 145.0, "36": 112.0, "37": 89.0, "38": 140.0, "39": 178.0,
     "40": 189.0, "41": 168.0, "42": 157.0, "43": 360.0, "44": 234.0, "45": 297.0, "46": 256.0, "47": 167.0, "48": 189.0, "49": 198.0,
@@ -326,35 +326,12 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
             context.user_data["awaiting_deposit_amount"] = True
             return
 
-        try:
-            user = update.effective_user
-            username = f"@{user.username}" if user.username else f"{user.first_name} (No username)"
-            
-            approval_markup = InlineKeyboardMarkup([
-                [
-                    InlineKeyboardButton("✅ Approve", callback_data=f"approve_{user.id}_{amount}"),
-                    InlineKeyboardButton("❌ Reject", callback_data=f"reject_{user.id}_{amount}")
-                ]
-            ])
-            
-            await context.bot.send_message(
-                chat_id=ADMIN_CHANNEL_ID,
-                text=(
-                    f"💳 <b>New Deposit Request!</b>\n\n"
-                    f"• <b>User:</b> {user.first_name} ({username})\n"
-                    f"• <b>ID:</b> <code>{user.id}</code>\n"
-                    f"• <b>Amount Requested:</b> ₹{amount:.2f}"
-                ),
-                parse_mode="HTML",
-                reply_markup=approval_markup
-            )
-        except Exception as e:
-            logging.error(f"Error sending deposit alert to admin channel: {e}")
+        context.user_data["pending_deposit_amount"] = amount
+        context.user_data["awaiting_deposit_screenshot"] = True
 
         caption = (
-            f"💳 <b>Deposit Request Received</b>\n\n"
-            f"• <b>Amount:</b> ₹{amount:.2f}\n\n"
-            f"Scan the QR code above to pay. After payment, send your transaction screenshot or contact support {SUPPORT_USERNAME} with proof."
+            f"💳 <b>Deposit Amount Set: ₹{amount:.2f}</b>\n\n"
+            f"Please scan the QR code above to pay, and then <b>send your payment screenshot</b> here in chat to submit your request."
         )
         
         if os.path.exists("qr_code.png"):
@@ -363,13 +340,13 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
                     photo=photo_file,
                     caption=caption,
                     parse_mode="HTML",
-                    reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]])
+                    reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Cancel", callback_data="main_menu")]])
                 )
         else:
             await update.message.reply_text(
                 f"{caption}\n\n⚠️ <i>(Note: qr_code.png file is missing on the server storage).</i>",
                 parse_mode="HTML",
-                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]])
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Cancel", callback_data="main_menu")]])
             )
         return
 
@@ -426,6 +403,46 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text(text_msg, parse_mode="HTML", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("💬 Contact Support", url=f"https://t.me/{SUPPORT_USERNAME.lstrip('@')}"), InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]]))
     elif text == "💬 Support":
         await update.message.reply_text(f"📞 <b>Contact Support:</b> {SUPPORT_USERNAME}", parse_mode="HTML")
+
+async def handle_photo_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if not context.user_data.get("awaiting_deposit_screenshot"):
+        return
+
+    context.user_data["awaiting_deposit_screenshot"] = False
+    amount = context.user_data.get("pending_deposit_amount", 0.0)
+    
+    photo_file = update.message.photo[-1].file_id
+    user = update.effective_user
+    username = f"@{user.username}" if user.username else f"{user.first_name} (No username)"
+
+    approval_markup = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("✅ Approve", callback_data=f"approve_{user.id}_{amount}"),
+            InlineKeyboardButton("❌ Reject", callback_data=f"reject_{user.id}_{amount}")
+        ]
+    ])
+
+    try:
+        await context.bot.send_photo(
+            chat_id=ADMIN_CHANNEL_ID,
+            photo=photo_file,
+            caption=(
+                f"💳 <b>New Deposit Request with Proof!</b>\n\n"
+                f"• <b>User:</b> {user.first_name} ({username})\n"
+                f"• <b>ID:</b> <code>{user.id}</code>\n"
+                f"• <b>Amount Requested:</b> ₹{amount:.2f}"
+            ),
+            parse_mode="HTML",
+            reply_markup=approval_markup
+        )
+        await update.message.reply_text(
+            "✅ <b>Screenshot Submitted Successfully!</b>\n\nYour payment proof has been sent to administration. You will be notified once approved.",
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]]))
+    except Exception as e:
+        logging.error(f"Error forwarding deposit screenshot to admin channel: {e}")
+        await update.message.reply_text("❌ Failed to send screenshot. Please try again or contact support.")
 
 async def add_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if len(context.args) < 2:
@@ -562,10 +579,18 @@ async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         try:
             admin_user = query.from_user.first_name
-            await query.edit_message_text(
-                text=query.message.text_html + f"\n\n<b>STATUS:</b> ✅ Approved & Credited ₹{added_amount:.2f} by {admin_user}",
-                parse_mode="HTML"
-            )
+            if query.message.caption:
+                await query.edit_message_caption(
+                    caption=query.message.caption_html + f"\n\n<b>STATUS:</b> ✅ Approved & Credited ₹{added_amount:.2f} by {admin_user}",
+                    parse_mode="HTML",
+                    reply_markup=None
+                )
+            else:
+                await query.edit_message_text(
+                    text=query.message.text_html + f"\n\n<b>STATUS:</b> ✅ Approved & Credited ₹{added_amount:.2f} by {admin_user}",
+                    parse_mode="HTML",
+                    reply_markup=None
+                )
         except Exception:
             pass
             
@@ -585,10 +610,18 @@ async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         try:
             admin_user = query.from_user.first_name
-            await query.edit_message_text(
-                text=query.message.text_html + f"\n\n<b>STATUS:</b> ❌ Rejected by {admin_user}",
-                parse_mode="HTML"
-            )
+            if query.message.caption:
+                await query.edit_message_caption(
+                    caption=query.message.caption_html + f"\n\n<b>STATUS:</b> ❌ Rejected by {admin_user}",
+                    parse_mode="HTML",
+                    reply_markup=None
+                )
+            else:
+                await query.edit_message_text(
+                    text=query.message.text_html + f"\n\n<b>STATUS:</b> ❌ Rejected by {admin_user}",
+                    parse_mode="HTML",
+                    reply_markup=None
+                )
         except Exception:
             pass
             
@@ -726,8 +759,9 @@ def main():
     app.add_handler(CommandHandler("deduct", deduct_balance))
     app.add_handler(CommandHandler("broadcast", broadcast))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
+    app.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND, handle_photo_messages))
     app.add_handler(CallbackQueryHandler(button_router))
-    print("🚀 Bot Online with Approve/Reject Buttons, Buyer Notifications, 20-min OTP Window, and 3-min Refund Lock!")
+    print("🚀 Bot Online with Photo Proof Deposit Verification, Interactive Approve/Reject, and Complete Order Flow!")
     
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
