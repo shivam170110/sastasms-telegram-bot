@@ -623,6 +623,10 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
     app.add_handler(CallbackQueryHandler(button_router))
     print("🚀 Bot Online with Username Tracking, 187 Countries, Force Sub & Referrals!")
+    
+    # Explicit loop configuration to prevent RuntimeError on Render
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     app.run_polling()
 
 if __name__ == "__main__":
