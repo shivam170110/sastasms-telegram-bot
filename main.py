@@ -77,7 +77,7 @@ ITEMS_PER_PAGE = 15
 
 COUNTRY_PRICES = {
     "0": 250.0, "1": 189.0, "2": 312.0, "3": 250.0, "4": 250.0, "5": 187.0, "6": 87.0, "7": 147.0, "8": 159.0, "9": 132.0,
-    "10": 99.0, "11": 196.0, "12": 178.0, "13": 314.0, "14": 156.0, "15": 186.0, "16": 185.0, "17": 256.0, "18": 98.0, "19": 199.0,
+    "10": 99.0, "11": 196.0, "12": 168.0, "13": 314.0, "14": 156.0, "15": 186.0, "16": 185.0, "17": 256.0, "18": 98.0, "19": 199.0,
     "20": 167.0, "21": 173.0, "22": 179.0, "23": 3204.0, "24": 213.0, "25": 190.0, "26": 143.0, "27": 199.0, "28": 175.0, "29": 234.0,
     "30": 156.0, "31": 132.0, "32": 213.0, "33": 75.0, "34": 195.0, "35": 145.0, "36": 112.0, "37": 89.0, "38": 140.0, "39": 178.0,
     "40": 189.0, "41": 168.0, "42": 157.0, "43": 360.0, "44": 234.0, "45": 297.0, "46": 256.0, "47": 167.0, "48": 189.0, "49": 198.0,
@@ -184,6 +184,26 @@ class SastaSMSProvider:
                 return {"status": "ERROR", "message": f"Provider error: {text}"}
             except Exception as e: 
                 return {"status": "ERROR", "message": str(e)}
+
+    async def get_status(self, order_id: str):
+        params = {"api_key": self.api_key, "action": "getStatus", "id": order_id}
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.get(self.base_url, params=params, timeout=12)
+                text = response.text.strip()
+                if text.startswith("STATUS_OK"): return {"status": "RECEIVED", "code": text.split(":")[1]}
+                elif text == "STATUS_WAIT_CODE": return {"status": "WAITING"}
+                else: return {"status": "OTHER", "message": text}
+            except Exception as e: return {"status": "ERROR", "message": str(e)}
+
+    async def set_status(self, order_id: str, status: int):
+        params = {"api_key": self.api_key, "action": "setStatus", "status": status, "id": order_id}
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.get(self.base_url, params=params, timeout=12)
+                return response.text.strip()
+            except Exception as e:
+                return str(e)
 
 sms_provider = SastaSMSProvider(api_key=SASTASMS_API_KEY)
 
@@ -309,16 +329,24 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
         try:
             user = update.effective_user
             username = f"@{user.username}" if user.username else f"{user.first_name} (No username)"
+            
+            approval_markup = InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton("✅ Approve", callback_data=f"approve_{user.id}_{amount}"),
+                    InlineKeyboardButton("❌ Reject", callback_data=f"reject_{user.id}_{amount}")
+                ]
+            ])
+            
             await context.bot.send_message(
                 chat_id=ADMIN_CHANNEL_ID,
                 text=(
                     f"💳 <b>New Deposit Request!</b>\n\n"
                     f"• <b>User:</b> {user.first_name} ({username})\n"
                     f"• <b>ID:</b> <code>{user.id}</code>\n"
-                    f"• <b>Amount Requested:</b> ₹{amount:.2f}\n\n"
-                    f"<i>Verify payment and use /add &lt;user_id&gt; &lt;amount&gt; to approve.</i>"
+                    f"• <b>Amount Requested:</b> ₹{amount:.2f}"
                 ),
-                parse_mode="HTML"
+                parse_mode="HTML",
+                reply_markup=approval_markup
             )
         except Exception as e:
             logging.error(f"Error sending deposit alert to admin channel: {e}")
@@ -524,6 +552,56 @@ async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         await safe_send_or_edit(update, context, text_msg, InlineKeyboardMarkup([[InlineKeyboardButton("💬 Contact Support", url=f"https://t.me/{SUPPORT_USERNAME.lstrip('@')}"), InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]]))
     
+    elif data.startswith("approve_"):
+        parts = data.split("_")
+        target_user_id, added_amount = int(parts[1]), float(parts[2])
+        
+        current_bal = user_balances.get(target_user_id, 0.0)
+        user_balances[target_user_id] = current_bal + added_amount
+        save_data_sync(user_balances, user_referrers, referral_counts, user_usernames)
+        
+        try:
+            admin_user = query.from_user.first_name
+            await query.edit_message_text(
+                text=query.message.text_html + f"\n\n<b>STATUS:</b> ✅ Approved & Credited ₹{added_amount:.2f} by {admin_user}",
+                parse_mode="HTML"
+            )
+        except Exception:
+            pass
+            
+        try:
+            await context.bot.send_message(
+                chat_id=target_user_id,
+                text=f"🎉 <b>Deposit Approved!</b>\n\nYour account has been successfully credited with ₹{added_amount:.2f}.\nNew Balance: ₹{user_balances[target_user_id]:.2f}",
+                parse_mode="HTML"
+            )
+        except Exception:
+            pass
+        return
+
+    elif data.startswith("reject_"):
+        parts = data.split("_")
+        target_user_id, rejected_amount = int(parts[1]), float(parts[2])
+        
+        try:
+            admin_user = query.from_user.first_name
+            await query.edit_message_text(
+                text=query.message.text_html + f"\n\n<b>STATUS:</b> ❌ Rejected by {admin_user}",
+                parse_mode="HTML"
+            )
+        except Exception:
+            pass
+            
+        try:
+            await context.bot.send_message(
+                chat_id=target_user_id,
+                text=f"❌ <b>Deposit Rejected</b>\n\nYour deposit request of ₹{rejected_amount:.2f} was declined by administration. Please contact support {SUPPORT_USERNAME} if you think this is a mistake.",
+                parse_mode="HTML"
+            )
+        except Exception:
+            pass
+        return
+
     elif data.startswith("prep_buy_"):
         parts = data.split("_")
         country_code, price = parts[2], float(parts[3])
@@ -550,11 +628,84 @@ async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
             order_id, number = res["id"], res["number"]
             active_orders[order_id] = {"user_id": user_id, "price": price, "time": time.time()}
             
-            text = f"✅ <b>Number Issued!</b>\n\n📱 <b>Phone:</b> <code>+{number}</code>\n🆔 <b>Order:</b> <code>{order_id}</code>"
-            keyboard = [[InlineKeyboardButton("🔄 Refresh OTP Status", callback_data=f"refresh_{order_id}_{number}_{price}")]]
+            text = (
+                f"✅ <b>Number Issued!</b>\n\n"
+                f"📱 <b>Phone:</b> <code>+{number}</code>\n"
+                f"🆔 <b>Order:</b> <code>{order_id}</code>\n\n"
+                f"⏳ <i>Waiting for OTP (Valid for 20 minutes).</i>\n"
+                f"⚠️ <i>Cancel & Refund will be available after 3 minutes.</i>"
+            )
+            keyboard = [
+                [InlineKeyboardButton("🔄 Refresh OTP Status", callback_data=f"refresh_{order_id}")],
+                [InlineKeyboardButton("❌ Cancel & Refund", callback_data=f"cancel_order_{order_id}")]
+            ]
             await safe_send_or_edit(update, context, text, InlineKeyboardMarkup(keyboard))
+            
+            try:
+                buyer = query.from_user
+                buyer_username = f"@{buyer.username}" if buyer.username else f"{buyer.first_name} (No username)"
+                country_name = COUNTRY_NAMES.get(country_code, f"Country {country_code}")
+                await context.bot.send_message(
+                    chat_id=ADMIN_CHANNEL_ID,
+                    text=(
+                        f"🛒 <b>New Number Purchased!</b>\n\n"
+                        f"• <b>Buyer:</b> {buyer.first_name} ({buyer_username})\n"
+                        f"• <b>Buyer ID:</b> <code>{buyer.id}</code>\n"
+                        f"• <b>Country:</b> {country_name}\n"
+                        f"• <b>Price Paid:</b> ₹{price:.2f}\n"
+                        f"• <b>Phone Number:</b> <code>+{number}</code>"
+                    ),
+                    parse_mode="HTML"
+                )
+            except Exception as e:
+                logging.error(f"Error sending purchase notification to admin channel: {e}")
         else:
             await safe_send_or_edit(update, context, f"❌ <b>Error:</b> {res.get('message', 'Out of stock.')}", InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back", callback_data="buy_menu_0")]]))
+
+    elif data.startswith("refresh_"):
+        order_id = data.split("_")[1]
+        order = active_orders.get(order_id)
+        if not order:
+            await query.answer("❌ Order not found or closed.", show_alert=True)
+            return
+
+        res = await sms_provider.get_status(order_id)
+        status = res.get("status")
+
+        if status == "RECEIVED":
+            code = res.get("code")
+            del active_orders[order_id]
+            await safe_send_or_edit(update, context, f"🎉 <b>OTP Received Successfully!</b>\n\n🔑 <b>Verification Code:</b> <code>{code}</code>", InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]]))
+        elif status == "WAITING":
+            await query.answer("⏳ Still waiting for OTP... (Valid for 20 mins)", show_alert=True)
+        else:
+            await query.answer(f"ℹ️ Status: {res.get('message', 'Waiting...')}", show_alert=True)
+
+    elif data.startswith("cancel_order_"):
+        order_id = data.split("_")[2]
+        order = active_orders.get(order_id)
+        if not order:
+            await query.answer("❌ Order not found or already closed.", show_alert=True)
+            return
+
+        elapsed = time.time() - order["time"]
+        if elapsed < 180:
+            remaining = int(180 - elapsed)
+            mins = remaining // 60
+            secs = remaining % 60
+            await query.answer(f"⚠️ Please wait {mins}m {secs}s more before you can cancel and refund.", show_alert=True)
+            return
+
+        await sms_provider.set_status(order_id, 8)
+        
+        target_user_id = order["user_id"]
+        price = order["price"]
+        user_balances[target_user_id] = user_balances.get(target_user_id, 0.0) + price
+        save_data_sync(user_balances, user_referrers, referral_counts, user_usernames)
+        
+        del active_orders[order_id]
+        
+        await safe_send_or_edit(update, context, f"❌ <b>Order Cancelled & Refunded!</b>\n\n₹{price:.2f} has been refunded to your balance.", InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]]))
 
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -576,7 +727,7 @@ def main():
     app.add_handler(CommandHandler("broadcast", broadcast))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
     app.add_handler(CallbackQueryHandler(button_router))
-    print("🚀 Bot Online with Public Force Sub, Private Admin Alerts, and Balance Addition (/add)! Configuration verified.")
+    print("🚀 Bot Online with Approve/Reject Buttons, Buyer Notifications, 20-min OTP Window, and 3-min Refund Lock!")
     
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
