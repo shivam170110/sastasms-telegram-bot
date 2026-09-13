@@ -25,7 +25,7 @@ ADMIN_CHANNEL_ID = -1004499634002
 SUPPORT_USERNAME = "@WSPCS1"
 
 # Force Subscription Channel ID (Bot must be an admin here)
-FORCE_SUB_CHANNEL = -1003874345433
+FORCE_SUB_CHANNEL = "@WHATSAPP_VAULT"
 
 # JSONBin.io Cloud Storage Credentials
 JSONBIN_BIN_ID = "6aa58b12ffd5d16053fef63e"
