@@ -69,254 +69,72 @@ def save_data_sync(balances_dict, referrals_dict, ref_counts_dict, usernames_dic
     except Exception as e:
         logging.error(f"Error saving data to cloud: {e}")
 
-# Load persistent records into memory
 user_balances, user_referrers, referral_counts, user_usernames = load_data_sync()
 active_orders = {}  
 ITEMS_PER_PAGE = 15  
 
-# ==========================================
-# 🏷️ ALL 187 COUNTRY PRICES & NAMES
-# ==========================================
 COUNTRY_PRICES = {
-    "0": 250.0,   # 🇷🇺 Russia
-    "1": 189.0,   # 🇺🇦 Ukraine
-    "2": 312.0,   # 🇰🇿 Kazakhstan
-    "3": 250.0,   # 🇨🇳 China
-    "4": 250.0,   # 🇵🇭 Philippines
-    "5": 187.0,   # 🇲🇲 Myanmar
-    "6": 87.0,    # 🇲🇩 Moldova
-    "7": 147.0,   # 🇲🇾 Malaysia
-    "8": 159.0,   # 🇰🇪 Kenya
-    "9": 132.0,   # 🇹🇿 Tanzania
-    "10": 99.0,   # 🇻🇳 Vietnam
-    "11": 196.0,  # 🇰🇬 Kyrgyzstan
-    "12": 178.0,  # 🇺🇸 USA
-    "13": 314.0,  # 🇮🇱 Israel
-    "14": 156.0,  # 🇭🇰 Hong Kong
-    "15": 186.0,  # 🇵🇱 Poland
-    "16": 185.0,  # 🇬🇧 UK
-    "17": 256.0,  # 🇲🇬 Madagascar
-    "18": 98.0,   # 🇨🇬 Congo
-    "19": 199.0,  # 🇳🇬 Nigeria
-    "20": 167.0,  # 🇲🇴 Macau
-    "21": 173.0,  # 🇪🇬 Egypt
-    "22": 179.0,  # 🇮🇳 India
-    "23": 3204.0, # 🇮🇪 Ireland
-    "24": 213.0,  # 🇰🇭 Cambodia
-    "25": 190.0,  # 🇱🇦 Laos
-    "26": 143.0,  # 🇭🇹 Haiti
-    "27": 199.0,  # 🇨🇮 Ivory Coast
-    "28": 175.0,  # 🇬🇲 Gambia
-    "29": 234.0,  # 🇸🇪 Sweden
-    "30": 156.0,  # 🇮🇶 Iraq
-    "31": 132.0,  # 🇿🇦 South Africa
-    "32": 213.0,  # 🇷🇴 Romania
-    "33": 75.0,   # 🇨🇴 Colombia
-    "34": 195.0,  # 🇪🇪 Estonia
-    "35": 145.0,  # 🇦🇿 Azerbaijan
-    "36": 112.0,  # 🇨🇦 Canada
-    "37": 89.0,   # 🇲🇦 Morocco
-    "38": 140.0,  # 🇬🇭 Ghana
-    "39": 178.0,  # 🇦🇷 Argentina
-    "40": 189.0,  # 🇺🇿 Uzbekistan
-    "41": 168.0,  # 🇨🇲 Cameroon
-    "42": 157.0,  # 🇹🇩 Chad
-    "43": 360.0,  # 🇩🇪 Germany
-    "44": 234.0,  # 🇱🇹 Lithuania
-    "45": 297.0,  # 🇭🇷 Croatia
-    "46": 256.0,  # 🇸🇮 Slovenia
-    "47": 167.0,  # 🇸🇳 Senegal
-    "48": 189.0,  # 🇵🇹 Portugal
-    "49": 198.0,  # 🇹🇷 Turkey
-    "50": 309.0,  # 🇨🇿 Czechia
-    "51": 178.0,  # 🇱🇺 Luxembourg
-    "52": 176.0,  # 🇱🇰 Sri Lanka
-    "53": 189.0,  # 🇵🇪 Peru
-    "54": 250.0,  # 🇵🇰 Pakistan
-    "55": 781.0,  # 🇳🇿 New Zealand
-    "56": 180.0,  # 🇬🇳 Guinea
-    "57": 230.0,  # 🇲🇱 Mali
-    "58": 178.0,  # 🇻🇪 Venezuela
-    "59": 198.0,  # 🇪🇹 Ethiopia
-    "60": 130.0,  # 🇲🇳 Mongolia
-    "61": 340.0,  # 🇧🇷 Brazil
-    "62": 176.0,  # 🇦🇫 Afghanistan
-    "63": 198.0,  # 🇺🇬 Uganda
-    "64": 178.0,  # 🇦🇴 Angola
-    "65": 671.0,  # 🇨🇾 Cyprus
-    "66": 990.0,  # 🇫🇷 France
-    "67": 156.0,  # 🇿🇼 Zimbabwe
-    "68": 139.0,  # 🇲🇼 Malawi
-    "69": 40.0,   # 🇳🇦 Namibia
-    "70": 187.0,  # 🇳🇪 Niger
-    "71": 178.0,  # 🇷🇼 Rwanda
-    "72": 158.0,  # 🇸🇱 Sierra Leone
-    "73": 167.0,  # 🇸🇴 Somalia
-    "74": 199.0,  # 🇸🇩 Sudan
-    "75": 40.0,   # 🇸🇿 Eswatini
-    "76": 193.0,  # 🇹🇬 Togo
-    "77": 173.0,  # 🇿🇲 Zambia
-    "78": 212.0,  # 🇦🇱 Albania
-    "79": 245.0,  # 🇦🇲 Armenia
-    "80": 999.0,  # 🇦🇹 Austria
-    "81": 179.0,  # 🇧🇾 Belarus
-    "82": 640.0,  # 🇧🇪 Belgium
-    "83": 198.0,  # 🇧🇦 Bosnia
-    "84": 654.0,  # 🇧🇬 Bulgaria
-    "85": 290.0,  # 🇩🇰 Denmark
-    "86": 599.0,  # 🇪🇸 Spain
-    "87": 456.0,  # 🇫🇮 Finland
-    "88": 210.0,  # 🇬🇪 Georgia
-    "89": 245.0,  # 🇬🇷 Greece
-    "90": 350.0,  # 🇭🇺 Hungary
-    "91": 190.0,  # 🇮🇸 Iceland
-    "92": 560.0,  # 🇮🇹 Italy
-    "93": 198.0,  # 🇧🇩 Bangladesh
-    "94": 190.0,  # 🇱🇻 Latvia
-    "95": 225.0,  # 🇱🇮 Liechtenstein
-    "96": 234.0,  # 🇲🇰 N. Macedonia
-    "97": 40.0,   # 🇲🇹 Malta
-    "98": 230.0,  # 🇲🇩 Moldova
-    "99": 190.0,  # 🇲🇨 Monaco
-    "100": 200.0, # 🇲🇪 Montenegro
-    "101": 245.0, # 🇳🇱 Netherlands
-    "102": 234.0, # 🇳🇴 Norway
-    "103": 304.0, # 🇸🇰 Slovakia
-    "104": 250.0, # 🇨🇭 Switzerland
-    "105": 168.0, # 🇹🇭 Thailand
-    "106": 1472.0,# 🇯🇵 Japan
-    "107": 250.0, # 🇰🇷 South Korea
-    "108": 198.0, # 🇸🇦 Saudi Arabia
-    "109": 234.0, # 🇦🇪 UAE
-    "110": 196.0, # 🇯🇴 Jordan
-    "111": 178.0, # 🇱🇧 Lebanon
-    "112": 40.0,  # 🇴🇲 Oman
-    "113": 180.0, # 🇶🇦 Qatar
-    "114": 365.0, # 🇰🇼 Kuwait
-    "115": 234.0, # 🇧🇭 Bahrain
-    "116": 189.0, # 🇾🇪 Yemen
-    "117": 230.0, # 🇲🇽 Mexico
-    "118": 204.0, # 🇨🇷 Costa Rica
-    "119": 203.0, # 🇵🇦 Panama
-    "120": 150.0, # 🇨🇺 Cuba
-    "121": 178.0, # 🇩🇴 Dominican Rep.
-    "122": 200.0, # 🇯🇲 Jamaica
-    "123": 198.0, # 🇧🇴 Bolivia
-    "124": 158.0, # 🇪🇨 Ecuador
-    "125": 205.0, # 🇵🇾 Paraguay
-    "126": 196.0, # 🇺🇾 Uruguay
-    "127": 1134.0,# 🇹🇼 Taiwan
-    "128": 1098.0,# 🇸🇬 Singapore
-    "129": 209.0, # 🇳🇵 Nepal
-    "130": 189.0, # 🇧🇹 Bhutan
-    "131": 240.0, # 🇲🇻 Maldives
-    "132": 199.0, # 🇧🇳 Brunei
-    "133": 199.0, # 🇹🇲 Turkmenistan
-    "134": 156.0, # 🇹🇯 Tajikistan
-    "135": 196.0, # 🇸🇾 Syria
-    "136": 205.0, # 🇵🇸 Palestine
-    "137": 204.0, # 🇱🇾 Libya
-    "138": 199.0, # 🇹🇳 Tunisia
-    "139": 197.0, # 🇩🇿 Algeria
-    "140": 199.0, # 🇲🇷 Mauritania
-    "141": 230.0, # 🇪🇷 Eritrea
-    "142": 257.0, # 🇩🇯 Djibouti
-    "143": 171.0, # 🇸🇸 South Sudan
-    "144": 679.0, # 🇦🇺 Australia
-    "145": 198.0, # 🇵🇬 Papua New Guinea
-    "146": 40.0,  # 🇫🇯 Fiji
-    "147": 40.0,  # 🇸🇧 Solomon Is.
-    "148": 40.0,  # 🇻🇺 Vanuatu
-    "149": 267.0, # 🇼🇸 Samoa
-    "150": 267.0, # 🇹🇴 Tonga
-    "151": 195.0, # 🇧🇿 Belize
-    "152": 198.0, # 🇬🇹 Guatemala
-    "153": 200.0, # 🇸🇻 El Salvador
-    "154": 199.0, # 🇭🇳 Honduras
-    "155": 140.0, # 🇳🇮 Nicaragua
-    "156": 190.0, # 🇬🇾 Guyana
-    "157": 198.0, # 🇸🇷 Suriname
-    "158": 197.0, # 🇧🇸 Bahamas
-    "159": 176.0, # 🇧🇧 Barbados
-    "160": 189.0, # 🇹🇹 Trinidad
-    "161": 198.0, # 🇬🇩 Grenada
-    "162": 194.0, # 🇱🇨 St. Lucia
-    "163": 149.0, # 🇻🇨 St. Vincent
-    "164": 128.0, # 🇦🇬 Antigua
-    "165": 278.0, # 🇰🇳 St. Kitts
-    "166": 190.0, # 🇩🇲 Dominica
-    "167": 194.0, # 🇨🇻 Cape Verde
-    "168": 190.0, # 🇸🇹 Sao Tome
-    "169": 194.0, # 🇬🇼 Guinea-Bissau
-    "170": 194.0, # 🇬🇶 Eq. Guinea
-    "171": 190.0, # 🇬🇦 Gabon
-    "172": 184.0, # 🇨🇫 CAR
-    "173": 170.0, # 🇰🇲 Comoros
-    "174": 204.0, # 🇲🇺 Mauritius
-    "175": 214.0, # 🇸🇨 Seychelles
-    "176": 214.0, # 🇱🇸 Lesotho
-    "177": 194.0, # 🇧🇼 Botswana
-    "178": 184.0, # 🇦🇩 Andorra
-    "179": 194.0, # 🇸🇲 San Marino
-    "180": 1040.0,# 🇻🇦 Vatican
-    "181": 1040.0,# 🇲🇨 Monaco
-    "182": 1940.0,# 🇯🇵 Japan
-    "183": 1040.0,# 🇰🇷 S. Korea
-    "184": 1940.0,# 🇹🇼 Taiwan
-    "185": 1940.0,# 🇭🇰 Hong Kong
-    "186": 375.0, # 🇲🇴 Macau
-    "187": 375.0  # 🇸🇬 Singapore
+    "0": 250.0, "1": 189.0, "2": 312.0, "3": 250.0, "4": 250.0, "5": 187.0, "6": 87.0, "7": 147.0, "8": 159.0, "9": 132.0,
+    "10": 99.0, "11": 196.0, "12": 178.0, "13": 314.0, "14": 156.0, "15": 186.0, "16": 185.0, "17": 256.0, "18": 98.0, "19": 199.0,
+    "20": 167.0, "21": 173.0, "22": 179.0, "23": 3204.0, "24": 213.0, "25": 190.0, "26": 143.0, "27": 199.0, "28": 175.0, "29": 234.0,
+    "30": 156.0, "31": 132.0, "32": 213.0, "33": 75.0, "34": 195.0, "35": 145.0, "36": 112.0, "37": 89.0, "38": 140.0, "39": 178.0,
+    "40": 189.0, "41": 168.0, "42": 157.0, "43": 360.0, "44": 234.0, "45": 297.0, "46": 256.0, "47": 167.0, "48": 189.0, "49": 198.0,
+    "50": 309.0, "51": 178.0, "52": 176.0, "53": 189.0, "54": 250.0, "55": 781.0, "56": 180.0, "57": 230.0, "58": 178.0, "59": 198.0,
+    "60": 130.0, "61": 340.0, "62": 176.0, "63": 198.0, "64": 178.0, "65": 671.0, "66": 990.0, "67": 156.0, "68": 139.0, "69": 40.0,
+    "70": 187.0, "71": 178.0, "72": 158.0, "73": 167.0, "74": 199.0, "75": 40.0, "76": 193.0, "77": 173.0, "78": 212.0, "79": 245.0,
+    "80": 999.0, "81": 179.0, "82": 640.0, "83": 198.0, "84": 654.0, "85": 290.0, "86": 599.0, "87": 456.0, "88": 210.0, "89": 245.0,
+    "90": 350.0, "91": 190.0, "92": 560.0, "93": 198.0, "94": 190.0, "95": 225.0, "96": 234.0, "97": 40.0, "98": 230.0, "99": 190.0,
+    "100": 200.0, "101": 245.0, "102": 234.0, "103": 304.0, "104": 250.0, "105": 168.0, "106": 1472.0, "107": 250.0, "108": 198.0, "109": 234.0,
+    "110": 196.0, "111": 178.0, "112": 40.0, "113": 180.0, "114": 365.0, "115": 234.0, "116": 189.0, "117": 230.0, "118": 204.0, "119": 203.0,
+    "120": 150.0, "121": 178.0, "122": 200.0, "123": 198.0, "124": 158.0, "125": 205.0, "126": 196.0, "127": 1134.0, "128": 1098.0, "129": 209.0,
+    "130": 189.0, "131": 240.0, "132": 199.0, "133": 199.0, "134": 156.0, "135": 196.0, "136": 205.0, "137": 204.0, "138": 199.0, "139": 197.0,
+    "140": 199.0, "141": 230.0, "142": 257.0, "143": 171.0, "144": 679.0, "145": 198.0, "146": 40.0, "147": 40.0, "148": 40.0, "149": 267.0,
+    "150": 267.0, "151": 195.0, "152": 198.0, "153": 200.0, "154": 199.0, "155": 140.0, "156": 190.0, "157": 198.0, "158": 197.0, "159": 176.0,
+    "160": 189.0, "161": 198.0, "162": 194.0, "163": 149.0, "164": 128.0, "165": 278.0, "166": 190.0, "167": 194.0, "168": 190.0, "169": 194.0,
+    "170": 194.0, "171": 190.0, "172": 184.0, "173": 170.0, "174": 204.0, "175": 214.0, "176": 214.0, "177": 194.0, "178": 184.0, "179": 194.0,
+    "180": 1040.0, "181": 1040.0, "182": 1940.0, "183": 1040.0, "184": 1940.0, "185": 1940.0, "186": 375.0, "187": 375.0
 }
 DEFAULT_PRICE = 250.0  
 
 COUNTRY_NAMES = {
-    "0": "🇷🇺 Russia", "1": "🇺🇦 Ukraine", "2": "🇰🇿 Kazakhstan", "3": "🇨🇳 China",
-    "4": "🇵🇭 Philippines", "5": "🇲🇲 Myanmar", "6": "🇮🇩 Indonesia", "7": "🇲🇾 Malaysia",
-    "8": "🇰🇪 Kenya", "9": "🇹🇿 Tanzania", "10": "🇻🇳 Vietnam", "11": "🇰🇬 Kyrgyzstan",
-    "12": "🇺🇸 USA", "13": "🇮🇱 Israel", "14": "🇭🇰 Hong Kong", "15": "🇵🇱 Poland",
-    "16": "🇬🇧 UK", "17": "🇲🇬 Madagascar", "18": "🇨🇬 Congo", "19": "🇳🇬 Nigeria",
-    "20": "🇲🇴 Macau", "21": "🇪🇬 Egypt", "22": "🇮🇳 India", "23": "🇮🇪 Ireland",
-    "24": "🇰🇭 Cambodia", "25": "🇱🇦 Laos", "26": "🇭🇹 Haiti", "27": "🇨🇮 Ivory Coast",
-    "28": "🇬🇲 Gambia", "29": "🇸🇪 Sweden", "30": "🇮🇶 Iraq", "31": "🇿🇦 South Africa",
-    "32": "🇷🇴 Romania", "33": "🇨🇴 Colombia", "34": "🇪🇪 Estonia", "35": "🇦🇿 Azerbaijan",
-    "36": "🇨🇦 Canada", "37": "🇲🇦 Morocco", "38": "🇬🇭 Ghana", "39": "🇦🇷 Argentina",
-    "40": "🇺🇿 Uzbekistan", "41": "🇨🇲 Cameroon", "42": "🇹🇩 Chad", "43": "🇩🇪 Germany",
-    "44": "🇱🇹 Lithuania", "45": "🇭🇷 Croatia", "46": "🇸🇮 Slovenia", "47": "🇸🇳 Senegal",
-    "48": "🇵🇹 Portugal", "49": "🇹🇷 Turkey", "50": "🇨🇿 Czechia", "51": "🇱🇺 Luxembourg",
-    "52": "🇱🇰 Sri Lanka", "53": "🇵🇪 Peru", "54": "🇵🇰 Pakistan", "55": "🇳🇿 New Zealand",
-    "56": "🇬🇳 Guinea", "57": "🇲🇱 Mali", "58": "🇻🇪 Venezuela", "59": "🇪🇹 Ethiopia",
-    "60": "🇲🇳 Mongolia", "61": "🇧🇷 Brazil", "62": "🇦🇫 Afghanistan", "63": "🇺🇬 Uganda",
-    "64": "🇦🇴 Angola", "65": "🇨🇾 Cyprus", "66": "🇫🇷 France", "67": "🇿🇼 Zimbabwe",
-    "68": "🇲🇼 Malawi", "69": "🇳🇦 Namibia", "70": "🇳🇪 Niger", "71": "🇷🇼 Rwanda",
-    "72": "🇸🇱 Sierra Leone", "73": "🇸🇴 Somalia", "74": "🇸🇩 Sudan", "75": "🇸🇿 Eswatini",
-    "76": "🇹🇬 Togo", "77": "🇿🇲 Zambia", "78": "🇦🇱 Albania", "79": "🇦🇲 Armenia",
-    "80": "🇦🇹 Austria", "81": "🇧🇾 Belarus", "82": "🇧🇪 Belgium", "83": "🇧🇦 Bosnia",
-    "84": "🇧🇬 Bulgaria", "85": "🇩🇰 Denmark", "86": "🇪🇸 Spain", "87": "🇫🇮 Finland",
-    "88": "🇬🇪 Georgia", "89": "🇬🇷 Greece", "90": "🇭🇺 Hungary", "91": "🇮🇸 Iceland",
-    "92": "🇮🇹 Italy", "93": "🇧🇩 Bangladesh", "94": "🇱🇻 Latvia", "95": "🇱🇮 Liechtenstein",
-    "96": "🇲🇰 N. Macedonia", "97": "🇲🇹 Malta", "98": "🇲🇩 Moldova", "99": "🇲🇨 Monaco",
-    "100": "🇲🇪 Montenegro", "101": "🇳🇱 Netherlands", "102": "🇳🇴 Norway", "103": "🇸🇰 Slovakia",
-    "104": "🇨🇭 Switzerland", "105": "🇹🇭 Thailand", "106": "🇯🇵 Japan", "107": "🇰🇷 South Korea",
-    "108": "🇸🇦 Saudi Arabia", "109": "🇦🇪 UAE", "110": "🇯🇴 Jordan", "111": "🇱🇧 Lebanon",
-    "112": "🇴🇲 Oman", "113": "🇶🇦 Qatar", "114": "🇰🇼 Kuwait", "115": "🇧🇭 Bahrain",
-    "116": "🇾🇪 Yemen", "117": "🇲🇽 Mexico", "118": "🇨🇷 Costa Rica", "119": "🇵🇦 Panama",
-    "120": "🇨🇺 Cuba", "121": "🇩🇴 Dominican Rep.", "122": "🇯🇲 Jamaica", "123": "🇧🇴 Bolivia",
-    "124": "🇪🇨 Ecuador", "125": "🇵🇾 Paraguay", "126": "🇺🇾 Uruguay", "127": "🇹🇼 Taiwan",
-    "128": "🇸🇬 Singapore", "129": "🇳🇵 Nepal", "130": "🇧🇹 Bhutan", "131": "🇲🇻 Maldives",
-    "132": "🇧🇳 Brunei", "133": "🇹🇲 Turkmenistan", "134": "🇹🇯 Tajikistan", "135": "🇸🇾 Syria",
-    "136": "🇵🇸 Palestine", "137": "🇱🇾 Libya", "138": "🇹🇳 Tunisia", "139": "🇩🇿 Algeria",
-    "140": "🇲🇷 Mauritania", "141": "🇪🇷 Eritrea", "142": "🇩🇯 Djibouti", "143": "🇸🇸 South Sudan",
-    "144": "🇦🇺 Australia", "145": "🇵🇬 Papua New Guinea", "146": "🇫🇯 Fiji", "147": "🇸🇧 Solomon Is.",
-    "148": "🇻🇺 Vanuatu", "149": "🇼🇸 Samoa", "150": "🇹🇴 Tonga", "151": "🇧🇿 Belize",
-    "152": "🇬🇹 Guatemala", "153": "🇸🇻 El Salvador", "154": "🇭🇳 Honduras", "155": "🇳🇮 Nicaragua",
-    "156": "🇬🇾 Guyana", "157": "🇸🇷 Suriname", "158": "🇧🇸 Bahamas", "159": "🇧🇧 Barbados",
-    "160": "🇹🇹 Trinidad", "161": "🇬🇩 Grenada", "162": "🇱🇨 St. Lucia", "163": "🇻🇨 St. Vincent",
-    "164": "🇦🇬 Antigua", "165": "🇰🇳 St. Kitts", "166": "🇩🇲 Dominica", "167": "🇨🇻 Cape Verde",
-    "168": "🇸🇹 Sao Tome", "169": "🇬🇼 Guinea-Bissau", "170": "🇬🇶 Eq. Guinea", "171": "🇬🇦 Gabon",
-    "172": "🇨🇫 CAR", "173": "🇰🇲 Comoros", "174": "🇲🇺 Mauritius", "175": "🇸🇨 Seychelles",
-    "176": "🇱🇸 Lesotho", "177": "🇧🇼 Botswana", "178": "🇦🇩 Andorra", "179": "🇸🇲 San Marino",
-    "180": "🇻🇦 Vatican", "181": "🇲🇨 Monaco", "182": "🇯🇵 Japan", "183": "🇰🇷 S. Korea",
-    "184": "🇹🇼 Taiwan", "185": "🇭🇰 Hong Kong", "186": "🇲🇴 Macau", "187": "🇸🇬 Singapore"
+    "0": "🇷🇺 Russia", "1": "🇺🇦 Ukraine", "2": "🇰🇿 Kazakhstan", "3": "🇨🇳 China", "4": "🇵🇭 Philippines",
+    "5": "🇲🇲 Myanmar", "6": "🇮🇩 Indonesia", "7": "🇲🇾 Malaysia", "8": "🇰🇪 Kenya", "9": "🇹🇿 Tanzania",
+    "10": "🇻🇳 Vietnam", "11": "🇰🇬 Kyrgyzstan", "12": "🇺🇸 USA", "13": "🇮🇱 Israel", "14": "🇭🇰 Hong Kong",
+    "15": "🇵🇱 Poland", "16": "🇬🇧 UK", "17": "🇲🇬 Madagascar", "18": "🇨🇬 Congo", "19": "🇳🇬 Nigeria",
+    "20": "🇲🇴 Macau", "21": "🇪🇬 Egypt", "22": "🇮🇳 India", "23": "🇮🇪 Ireland", "24": "🇰🇭 Cambodia",
+    "25": "🇱🇦 Laos", "26": "🇭🇹 Haiti", "27": "🇨🇮 Ivory Coast", "28": "🇬🇲 Gambia", "29": "🇸🇪 Sweden",
+    "30": "🇮🇶 Iraq", "31": "🇿🇦 South Africa", "32": "🇷🇴 Romania", "33": "🇨🇴 Colombia", "34": "🇪🇪 Estonia",
+    "35": "🇦🇿 Azerbaijan", "36": "🇨🇦 Canada", "37": "🇲🇦 Morocco", "38": "🇬🇭 Ghana", "39": "🇦🇷 Argentina",
+    "40": "🇺🇿 Uzbekistan", "41": "🇨🇲 Cameroon", "42": "🇹🇩 Chad", "43": "🇩🇪 Germany", "44": "🇱🇹 Lithuania",
+    "45": "🇭🇷 Croatia", "46": "🇸🇮 Slovenia", "47": "🇸🇳 Senegal", "48": "🇵🇹 Portugal", "49": "🇹🇷 Turkey",
+    "50": "🇨🇿 Czechia", "51": "🇱🇺 Luxembourg", "52": "🇱🇰 Sri Lanka", "53": "🇵🇪 Peru", "54": "🇵🇰 Pakistan",
+    "55": "🇳🇿 New Zealand", "56": "🇬🇳 Guinea", "57": "🇲🇱 Mali", "58": "🇻🇪 Venezuela", "59": "🇪🇹 Ethiopia",
+    "60": "🇲🇳 Mongolia", "61": "🇧🇷 Brazil", "62": "🇦🇫 Afghanistan", "63": "🇺🇬 Uganda", "64": "🇦🇴 Angola",
+    "65": "🇨🇾 Cyprus", "66": "🇫🇷 France", "67": "🇿🇼 Zimbabwe", "68": "🇲🇼 Malawi", "69": "🇳🇦 Namibia",
+    "70": "🇳🇪 Niger", "71": "🇷🇼 Rwanda", "72": "🇸🇱 Sierra Leone", "73": "🇸🇴 Somalia", "74": "🇸🇩 Sudan",
+    "75": "🇸🇿 Eswatini", "76": "🇹🇬 Togo", "77": "🇿🇲 Zambia", "78": "🇦🇱 Albania", "79": "🇦🇲 Armenia",
+    "80": "🇦🇹 Austria", "81": "🇧🇾 Belarus", "82": "🇧🇪 Belgium", "83": "🇧🇦 Bosnia", "84": "🇧🇬 Bulgaria",
+    "85": "🇩🇰 Denmark", "86": "🇪🇸 Spain", "87": "🇫🇮 Finland", "88": "🇬🇪 Georgia", "89": "🇬🇷 Greece",
+    "90": "🇭🇺 Hungary", "91": "🇮🇸 Iceland", "92": "🇮🇹 Italy", "93": "🇧🇩 Bangladesh", "94": "🇱🇻 Latvia",
+    "95": "🇱🇮 Liechtenstein", "96": "🇲🇰 N. Macedonia", "97": "🇲🇹 Malta", "98": "🇲🇩 Moldova", "99": "🇲🇨 Monaco",
+    "100": "🇲🇪 Montenegro", "101": "🇳🇱 Netherlands", "102": "🇳🇴 Norway", "103": "🇸🇰 Slovakia", "104": "🇨🇭 Switzerland",
+    "105": "🇹🇭 Thailand", "106": "🇯🇵 Japan", "107": "🇰🇷 South Korea", "108": "🇸🇦 Saudi Arabia", "109": "🇦🇪 UAE",
+    "110": "🇯🇴 Jordan", "111": "🇱🇧 Lebanon", "112": "🇴🇲 Oman", "113": "🇶🇦 Qatar", "114": "🇰🇼 Kuwait",
+    "115": "🇧🇭 Bahrain", "116": "🇾🇪 Yemen", "117": "🇲🇽 Mexico", "118": "🇨🇷 Costa Rica", "119": "🇵🇦 Panama",
+    "120": "🇨🇺 Cuba", "121": "🇩🇴 Dominican Rep.", "122": "🇯🇲 Jamaica", "123": "🇧🇴 Bolivia", "124": "🇪🇨 Ecuador",
+    "125": "🇵🇾 Paraguay", "126": "🇺🇾 Uruguay", "127": "🇹🇼 Taiwan", "128": "🇸🇬 Singapore", "129": "🇳🇵 Nepal",
+    "130": "🇧🇹 Bhutan", "131": "🇲🇻 Maldives", "132": "🇧🇳 Brunei", "133": "🇹🇲 Turkmenistan", "134": "🇹🇯 Tajikistan",
+    "135": "🇸🇾 Syria", "136": "🇵🇸 Palestine", "137": "🇱🇾 Libya", "138": "🇹🇳 Tunisia", "139": "🇩🇿 Algeria",
+    "140": "🇲🇷 Mauritania", "141": "🇪🇷 Eritrea", "142": "🇩🇯 Djibouti", "143": "🇸🇸 South Sudan", "144": "🇦🇺 Australia",
+    "145": "🇵🇬 Papua New Guinea", "146": "🇫🇯 Fiji", "147": "🇸🇧 Solomon Is.", "148": "🇻🇺 Vanuatu", "149": "🇼🇸 Samoa",
+    "150": "🇹🇴 Tonga", "151": "🇧🇿 Belize", "152": "🇬🇹 Guatemala", "153": "🇸🇻 El Salvador", "154": "🇭🇳 Honduras",
+    "155": "🇳🇮 Nicaragua", "156": "🇬🇾 Guyana", "157": "🇸🇷 Suriname", "158": "🇧🇸 Bahamas", "159": "🇧🇧 Barbados",
+    "160": "🇹🇹 Trinidad", "161": "🇬🇩 Grenada", "162": "🇱🇨 St. Lucia", "163": "🇻🇨 St. Vincent", "164": "🇦🇬 Antigua",
+    "165": "🇰🇳 St. Kitts", "166": "🇩🇲 Dominica", "167": "🇨🇻 Cape Verde", "168": "🇸🇹 Sao Tome", "169": "🇬🇼 Guinea-Bissau",
+    "170": "🇬🇶 Eq. Guinea", "171": "🇬🇦 Gabon", "172": "🇨🇫 CAR", "173": "🇰🇲 Comoros", "174": "🇲🇺 Mauritius",
+    "175": "🇸🇨 Seychelles", "176": "🇱🇸 Lesotho", "177": "🇧🇼 Botswana", "178": "🇦🇩 Andorra", "179": "🇸🇲 San Marino",
+    "180": "🇻🇦 Vatican", "181": "🇲🇨 Monaco", "182": "🇯🇵 Japan", "183": "🇰🇷 S. Korea", "184": "🇹🇼 Taiwan",
+    "185": "🇭🇰 Hong Kong", "186": "🇲🇴 Macau", "187": "🇸🇬 Singapore"
 }
 
 def get_all_country_list():
@@ -326,9 +144,6 @@ def get_all_country_list():
         full_list.append({"name": f"{name} - ₹{price:.2f}", "code": code, "raw_name": name, "price": price})
     return full_list
 
-# ==========================================
-# 🔒 FORCE SUBSCRIPTION CHECK
-# ==========================================
 async def check_user_subscription(user_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
     try:
         member = await context.bot.get_chat_member(chat_id=FORCE_SUB_CHANNEL, user_id=user_id)
@@ -349,9 +164,6 @@ async def safe_send_or_edit(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     else:
         await update.message.reply_text(text, parse_mode="HTML", reply_markup=reply_markup)
 
-# ==========================================
-# 📡 SASTASMS API PROVIDER
-# ==========================================
 class SastaSMSProvider:
     def __init__(self, api_key: str):
         self.api_key = api_key
@@ -371,42 +183,16 @@ class SastaSMSProvider:
             except Exception as e: 
                 return {"status": "ERROR", "message": str(e)}
 
-    async def get_status(self, order_id: str):
-        params = {"api_key": self.api_key, "action": "getStatus", "id": order_id}
-        async with httpx.AsyncClient() as client:
-            try:
-                response = await client.get(self.base_url, params=params, timeout=12)
-                text = response.text.strip()
-                if text.startswith("STATUS_OK"): return {"status": "RECEIVED", "code": text.split(":")[1]}
-                elif text == "STATUS_WAIT_CODE": return {"status": "WAITING"}
-                else: return {"status": "OTHER", "message": text}
-            except Exception as e: return {"status": "ERROR", "message": str(e)}
-
-    async def set_status(self, order_id: str, status: int):
-        params = {"api_key": self.api_key, "action": "setStatus", "status": status, "id": order_id}
-        async with httpx.AsyncClient() as client:
-            try:
-                response = await client.get(self.base_url, params=params, timeout=12)
-                return response.text.strip()
-            except Exception as e:
-                return str(e)
-
 sms_provider = SastaSMSProvider(api_key=SASTASMS_API_KEY)
 
-# ==========================================
-# 🤖 BOT COMMANDS & ROUTING
-# ==========================================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     user_id = user.id
     username = f"@{user.username}" if user.username else f"{user.first_name} (No username)"
 
-    # Save Username tracking
     if user_id not in user_usernames:
         user_usernames[user_id] = username
         save_data_sync(user_balances, user_referrers, referral_counts, user_usernames)
-        
-        # Notify Admin Channel about a new user
         try:
             await context.bot.send_message(
                 chat_id=ADMIN_CHANNEL_ID,
@@ -416,7 +202,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception:
             pass
 
-    # Handle Referral Tracking
     if context.args and len(context.args) > 0:
         arg = context.args[0]
         if arg.startswith("ref_") and user_id not in user_referrers:
@@ -429,7 +214,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except Exception:
                 pass
 
-    # Force Subscription Validation
     is_subbed = await check_user_subscription(user_id, context)
     if not is_subbed:
         try:
@@ -456,15 +240,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
 
     reply_keyboard = [
-        [KeyboardButton("🛒 Buy Number"), KeyboardButton("💳 Deposit")],
-        [KeyboardButton("👤 My Profile"), KeyboardButton("📦 Order History")],
-        [KeyboardButton("🎁 Gift"), KeyboardButton("👥 Refer & Earn")],
+        [KeyboardButton("🛒 Buy Number"), KeyboardButton("📦 Order History")],
+        [KeyboardButton("👤 My Profile"), KeyboardButton("🎁 Gift")],
+        [KeyboardButton("👥 Refer & Earn"), KeyboardButton("💳 Deposit")],
         [KeyboardButton("💬 Support")]
     ]
     bottom_markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
     inline_keyboard = [
         [InlineKeyboardButton("🛒 Buy Number (180+ Countries)", callback_data="buy_menu_0")], 
-        [InlineKeyboardButton("🎁 Gift", callback_data="gift_menu"), InlineKeyboardButton("👥 Refer & Earn", callback_data="refer_menu")]
+        [InlineKeyboardButton("🎁 Gift", callback_data="gift_menu"), InlineKeyboardButton("👥 Refer & Earn", callback_data="refer_menu")],
+        [InlineKeyboardButton("💳 Deposit", callback_data="deposit_menu")]
     ]
     
     if update.message:
@@ -495,6 +280,7 @@ async def show_countries(update: Update, context: ContextTypes.DEFAULT_TYPE, pag
     keyboard.append(nav_row)
 
     if total_pages > 3: keyboard.append([InlineKeyboardButton("⏮️ Page 1", callback_data="cpage_0"), InlineKeyboardButton("⏭️ End", callback_data=f"cpage_{total_pages - 1}")])
+    keyboard.append([InlineKeyboardButton("🔍 Search Country", callback_data="search_country")])
     keyboard.append([InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")])
 
     await safe_send_or_edit(update, context, f"<b>🌍 Select Country ({len(all_countries)} Available):</b>\n<i>Page {page + 1} of {total_pages}</i>", InlineKeyboardMarkup(keyboard))
@@ -503,6 +289,62 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
     user_id = update.effective_user.id
     if not await check_user_subscription(user_id, context):
         await update.message.reply_text("⚠️ Please join our official channel first, then send /start again.")
+        return
+
+    if context.user_data.get("awaiting_deposit_amount"):
+        amount_text = update.message.text.strip()
+        context.user_data["awaiting_deposit_amount"] = False
+        
+        try:
+            amount = float(amount_text)
+            if amount <= 0:
+                raise ValueError()
+        except ValueError:
+            await update.message.reply_text("❌ Invalid amount. Please enter a valid number:", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Cancel", callback_data="main_menu")]]))
+            context.user_data["awaiting_deposit_amount"] = True
+            return
+
+        caption = (
+            f"💳 <b>Deposit Request Received</b>\n\n"
+            f"• <b>Amount:</b> ₹{amount:.2f}\n\n"
+            f"Scan the QR code above to pay. After payment, send your transaction screenshot or contact support {SUPPORT_USERNAME} with proof."
+        )
+        
+        if os.path.exists("qr_code.png"):
+            with open("qr_code.png", "rb") as photo_file:
+                await update.message.reply_photo(
+                    photo=photo_file,
+                    caption=caption,
+                    parse_mode="HTML",
+                    reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]])
+                )
+        else:
+            await update.message.reply_text(
+                f"{caption}\n\n⚠️ <i>(Note: qr_code.png file is missing on the server storage).</i>",
+                parse_mode="HTML",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]])
+            )
+        return
+
+    if context.user_data.get("awaiting_search"):
+        query_text = update.message.text.strip().lower()
+        context.user_data["awaiting_search"] = False
+        all_countries = get_all_country_list()
+        matching = [c for c in all_countries if query_text in c["raw_name"].lower()]
+        
+        if not matching:
+            await update.message.reply_text("❌ No countries found matching your search.", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back to Countries", callback_data="buy_menu_0")]]))
+            return
+
+        keyboard = []
+        for i in range(0, len(matching), 2):
+            row = [InlineKeyboardButton(matching[i]["raw_name"], callback_data=f"prep_buy_{matching[i]['code']}_{matching[i]['price']}")]
+            if i + 1 < len(matching):
+                row.append(InlineKeyboardButton(matching[i+1]["raw_name"], callback_data=f"prep_buy_{matching[i+1]['code']}_{matching[i+1]['price']}"))
+            keyboard.append(row)
+        keyboard.append([InlineKeyboardButton("🔙 Back to Menu", callback_data="main_menu")])
+        
+        await update.message.reply_text(f"🔍 <b>Search Results for '{query_text}':</b>", parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
         return
 
     text = update.message.text.strip()
@@ -538,12 +380,8 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
     elif text == "💬 Support":
         await update.message.reply_text(f"📞 <b>Contact Support:</b> {SUPPORT_USERNAME}", parse_mode="HTML")
 
-# ==========================================
-# 🛠️ ADMIN BALANCE DEDUCTION COMMAND
-# ==========================================
 async def deduct_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    
     if len(context.args) < 2:
         await update.message.reply_text("⚠️ <b>Usage:</b> <code>/deduct user_id amount</code>", parse_mode="HTML")
         return
@@ -556,12 +394,10 @@ async def deduct_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     current_bal = user_balances.get(target_user_id, 0.0)
-    
     if current_bal < amount_to_deduct:
         await update.message.reply_text(f"⚠️ User only has ₹{current_bal:.2f}. Cannot deduct ₹{amount_to_deduct:.2f}.", parse_mode="HTML")
         return
 
-    # Deduct balance and sync to cloud
     user_balances[target_user_id] = current_bal - amount_to_deduct
     save_data_sync(user_balances, user_referrers, referral_counts, user_usernames)
 
@@ -573,9 +409,6 @@ async def deduct_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="HTML"
     )
 
-# ==========================================
-# 🎛️ CALLBACK ROUTER
-# ==========================================
 async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     try: await query.answer()
@@ -597,6 +430,12 @@ async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data == "main_menu": await start(update, context)
     elif data.startswith("buy_menu"): await show_countries(update, context, page=0)
     elif data.startswith("cpage_"): await show_countries(update, context, page=int(data.split("_")[1]))
+    elif data == "search_country":
+        context.user_data["awaiting_search"] = True
+        await safe_send_or_edit(update, context, "🔍 <b>Search Country</b>\n\nType part of the country name you want to find:", InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Cancel", callback_data="buy_menu_0")]]))
+    elif data == "deposit_menu":
+        context.user_data["awaiting_deposit_amount"] = True
+        await safe_send_or_edit(update, context, "💳 <b>Deposit Funds</b>\n\nEnter the amount to deposit:", InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Cancel", callback_data="main_menu")]]))
     elif data == "gift_menu":
         await safe_send_or_edit(update, context, "🎁 <b>Special Gift</b>\n\nCheck back later for promotional gifts and bonus vouchers, or contact support to redeem ongoing offers!", InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]]))
     elif data == "refer_menu":
@@ -621,7 +460,7 @@ async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         current_bal = user_balances.get(user_id, 0.0)
         
         if current_bal < price:
-            await safe_send_or_edit(update, context, f"⚠️ <b>Insufficient Balance!</b>\n\nPrice: ₹{price:.2f}\nBalance: ₹{current_bal:.2f}", InlineKeyboardMarkup([[InlineKeyboardButton("💳 Deposit Funds", callback_data="deposit")]]))
+            await safe_send_or_edit(update, context, f"⚠️ <b>Insufficient Balance!</b>\n\nPrice: ₹{price:.2f}\nBalance: ₹{current_bal:.2f}", InlineKeyboardMarkup([[InlineKeyboardButton("💳 Deposit Funds", callback_data="deposit_menu")]]))
             return
             
         keyboard = [[InlineKeyboardButton("✅ Confirm Purchase", callback_data=f"confirm_buy_{country_code}_{price}")], [InlineKeyboardButton("❌ Cancel", callback_data="buy_menu_0")]]
@@ -665,7 +504,7 @@ def main():
     app.add_handler(CommandHandler("deduct", deduct_balance))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
     app.add_handler(CallbackQueryHandler(button_router))
-    print("🚀 Bot Online with All Features & Balance Deduction Command!")
+    print("🚀 Bot Online with All Features & QR Code Deposit!")
     
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
