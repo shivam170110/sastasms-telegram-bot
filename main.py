@@ -71,47 +71,53 @@ user_balances, user_referrers, referral_counts, user_usernames = load_data_sync(
 active_orders = {}  
 ITEMS_PER_PAGE = 15  
 
-DEFAULT_PRICE = 250.0  
+# ==========================================
+# 📋 EXACT HARDCODED RETAIL PRICES FROM SCREEN RECORDING
+# ==========================================
+EXACT_PRices = {
+    "Philippines": 69.57, "Dominican Republic": 74.93, "Jordan": 74.93, "South Sudan": 74.93,
+    "Trinidad and Tobago": 74.93, "Bosnia and Herzegovina": 74.93, "Albania": 77.07, "Venezuela": 77.07,
+    "Costa Rica": 77.07, "Hong Kong": 81.34, "French Guiana": 81.34, "Guadeloupe": 81.34,
+    "Saint Lucia": 81.34, "Cape Verde": 81.34, "Sao Tome & Principe": 81.34, "Djibouti": 81.34,
+    "Cayman Islands": 81.34, "Saint Vincent": 81.34, "Andorra": 83.34, "Greenland": 83.34,
+    "Saudi Arabia": 85.63, "Malaysia": 85.63, "Comoros": 85.63, "Reunion": 85.63, "Mauritius": 85.63,
+    "Seychelles": 85.63, "New Caledonia": 85.63, "United Kingdom": 92.05, "Madagascar": 92.05,
+    "Tanzania": 92.05, "Algeria": 92.05, "Liberia": 92.05, "Tajikistan": 92.05, "Kyrgyzstan": 92.05,
+    "Ghana": 92.05, "Sierra Leone": 92.05, "Swaziland": 92.05, "Zambia": 92.05, "Malawi": 92.05,
+    "Haiti": 92.05, "Gambia": 92.05, "Equatorial Guinea": 92.05, "Zimbabwe": 93.12, "Cameroon": 94.19,
+    "Egypt": 96.34, "Belize": 96.34, "DR Congo": 96.34, "Aruba": 96.34, "Eritrea": 96.34,
+    "Jamaica": 98.48, "Kosovo": 100.61, "Niger": 104.90, "Lebanon": 104.90, "Burundi": 104.90,
+    "Iran": 104.90, "Ethiopia": 107.04, "Iraq": 107.04, "Peru": 107.04, "Luxembourg": 107.04,
+    "Gabon": 107.04, "Guinea": 109.18, "Namibia": 109.18, "Bangladesh": 111.31, "Benin": 111.31,
+    "Kenya": 111.31, "Ivory Coast": 111.31, "Afghanistan": 111.31, "Burkina Faso": 111.31,
+    "Nigeria": 113.46, "Thailand": 113.46, "Qatar": 113.46, "Slovakia": 113.46, "Uzbekistan": 113.46,
+    "Senegal": 113.46, "Suriname": 113.46, "Monaco": 113.46, "Niue": 113.46, "Azerbaijan": 115.60,
+    "Bahrain": 115.60, "Angola": 117.74, "Anguilla": 117.74, "Ukraine": 119.89, "Myanmar": 119.89,
+    "Sri Lanka": 119.89, "Libya": 119.89, "Mozambique": 119.89, "Turkey": 126.30, "Nicaragua": 126.30,
+    "Guatemala": 126.30, "Turkmenistan": 126.30, "Tunisia": 126.30, "Chad": 126.30, "Nepal": 126.30,
+    "Honduras": 126.30, "Guyana": 126.30, "Maldives": 126.30, "Timor-Leste": 126.30, "Montenegro": 126.30,
+    "Puerto Rico": 126.30, "Montserrat": 126.30, "Saint Kitts & Nevis": 126.30, "Macedonia": 126.30,
+    "Iceland": 126.30, "Salvador": 126.30, "Bermuda": 126.30, "China": 128.45, "Serbia": 128.45,
+    "Latvia": 128.45, "Panama": 130.59, "Lao": 130.59, "Mali": 130.59, "Uruguay": 130.59,
+    "Palestine": 138.90, "Argentina": 139.15, "Papua New Guinea": 139.15, "Mexico": 145.57,
+    "Cambodia": 147.71, "Togo": 149.86, "Georgia": 156.27, "Poland": 158.42, "Armenia": 158.42,
+    "Belarus": 150.53, "Greece": 160.56, "United Arab Emirates": 160.56, "Paraguay": 162.56,
+    "Norway": 162.56, "Estonia": 172.59, "Moldova": 172.59, "Samoa": 172.59, "Tonga": 172.59,
+    "Liechtenstein": 172.59, "South Korea": 172.59, "American Samoa": 172.59, "Sint Maarten": 172.59,
+    "Sweden": 188.66, "Country #173": 200.70, "Denmark": 202.70, "Netherlands": 206.72,
+    "Romania": 212.73, "Lithuania": 220.77, "Kuwait": 226.79, "Israel": 226.79, "Hungary": 226.79,
+    "Brazil": 240.83, "Czechia": 240.83, "Kazakhstan": 248.87, "Croatia": 260.90, "Macao": 262.91,
+    "Bulgaria": 276.96, "Germany": 280.97, "Belgium": 337.16, "Cyprus": 352.16, "Spain": 355.89,
+    "Finland": 421.46, "France": 468.29, "Pakistan": 468.29, "New Zealand": 505.75, "Italy": 543.21,
+    "Australia": 599.41, "Austria": 636.87, "Taiwan": 878.50, "Singapore": 936.57, "Ireland": 1685.82,
+    "Japan": 2200.94, "Gibraltar": 4214.56,
+    # Custom Overrides requested
+    "Indonesia": 50.0, "Yemen": 70.0, "Syria": 80.0, "South Africa": 60.0, "USA": 120.0, "India": 187.0
+}
 
 COUNTRY_NAMES = {
-    "0": "🇷🇺 Russia", "1": "🇺🇦 Ukraine", "2": "🇰🇿 Kazakhstan", "3": "🇨🇳 China", "4": "🇵🇭 Philippines",
-    "5": "🇲🇲 Myanmar", "6": "🇮🇩 Indonesia", "7": "🇲🇾 Malaysia", "8": "🇰🇪 Kenya", "9": "🇹🇿 Tanzania",
-    "10": "🇻🇳 Vietnam", "11": "🇰🇬 Kyrgyzstan", "12": "🇺🇸 USA", "13": "🇮🇱 Israel", "14": "🇭🇰 Hong Kong",
-    "15": "🇵🇱 Poland", "16": "🇬🇧 UK", "17": "🇲🇬 Madagascar", "18": "🇨🇬 Congo", "19": "🇳🇬 Nigeria",
-    "20": "🇲🇴 Macau", "21": "🇪🇬 Egypt", "22": "🇮🇳 India", "23": "🇮🇪 Ireland", "24": "🇰🇭 Cambodia",
-    "25": "🇱🇦 Laos", "26": "🇭🇹 Haiti", "27": "🇨🇮 Ivory Coast", "28": "🇬🇲 Gambia", "29": "🇸🇪 Sweden",
-    "30": "🇮🇶 Iraq", "31": "🇿🇦 South Africa", "32": "🇷🇴 Romania", "33": "🇨🇴 Colombia", "34": "🇪🇪 Estonia",
-    "35": "🇦🇿 Azerbaijan", "36": "🇨🇦 Canada", "37": "🇲🇦 Morocco", "38": "🇬🇭 Ghana", "39": "🇦🇷 Argentina",
-    "40": "🇺🇿 Uzbekistan", "41": "🇨🇲 Cameroon", "42": "🇹🇩 Chad", "43": "🇩🇪 Germany", "44": "🇱🇹 Lithuania",
-    "45": "🇭🇷 Croatia", "46": "🇸🇮 Slovenia", "47": "🇸🇳 Senegal", "48": "🇵🇹 Portugal", "49": "🇹🇷 Turkey",
-    "50": "🇨🇿 Czechia", "51": "🇱🇺 Luxembourg", "52": "🇱🇰 Sri Lanka", "53": "🇵🇪 Peru", "54": "🇵🇰 Pakistan",
-    "55": "🇳🇿 New Zealand", "56": "🇬🇳 Guinea", "57": "🇲🇱 Mali", "58": "🇻🇪 Venezuela", "59": "🇪🇹 Ethiopia",
-    "60": "🇲🇳 Mongolia", "61": "🇧🇷 Brazil", "62": "🇦🇫 Afghanistan", "63": "🇺🇬 Uganda", "64": "🇦🇴 Angola",
-    "65": "🇨🇾 Cyprus", "66": "🇫🇷 France", "67": "🇿🇼 Zimbabwe", "68": "🇲🇼 Malawi", "69": "🇳🇦 Namibia",
-    "70": "🇳🇪 Niger", "71": "🇷🇼 Rwanda", "72": "🇸🇱 Sierra Leone", "73": "🇸🇴 Somalia", "74": "🇸🇩 Sudan",
-    "75": "🇸🇿 Eswatini", "76": "🇹🇬 Togo", "77": "🇿🇲 Zambia", "78": "🇦🇱 Albania", "79": "🇦🇲 Armenia",
-    "80": "🇦🇹 Austria", "81": "🇧🇾 Belarus", "82": "🇧🇪 Belgium", "83": "🇧🇦 Bosnia", "84": "🇧🇬 Bulgaria",
-    "85": "🇩🇰 Denmark", "86": "🇪🇸 Spain", "87": "🇫🇮 Finland", "88": "🇬🇪 Georgia", "89": "🇬🇷 Greece",
-    "90": "🇭🇺 Hungary", "91": "🇮🇸 Iceland", "92": "🇮🇹 Italy", "93": "🇧🇩 Bangladesh", "94": "🇱🇻 Latvia",
-    "95": "🇱🇮 Liechtenstein", "96": "🇲🇰 N. Macedonia", "97": "🇲🇹 Malta", "98": "🇲🇩 Moldova", "99": "🇲🇨 Monaco",
-    "100": "🇲🇪 Montenegro", "101": "🇳🇱 Netherlands", "102": "🇳🇴 Norway", "103": "🇸🇰 Slovakia", "104": "🇨🇭 Switzerland",
-    "105": "🇹🇭 Thailand", "106": "🇯🇵 Japan", "107": "🇰🇷 South Korea", "108": "🇸🇦 Saudi Arabia", "109": "🇦🇪 UAE",
-    "110": "🇯🇴 Jordan", "111": "🇱🇧 Lebanon", "112": "🇴🇲 Oman", "113": "🇶🇦 Qatar", "114": "🇰🇼 Kuwait",
-    "115": "🇧🇭 Bahrain", "116": "🇾🇪 Yemen", "117": "🇲🇽 Mexico", "118": "🇨🇷 Costa Rica", "119": "🇵🇦 Panama",
-    "120": "🇨🇺 Cuba", "121": "🇩🇴 Dominican Rep.", "122": "🇯🇲 Jamaica", "123": "🇧🇴 Bolivia", "124": "🇪🇨 Ecuador",
-    "125": "🇵🇾 Paraguay", "126": "🇺🇾 Uruguay", "127": "🇹🇼 Taiwan", "128": "🇸🇬 Singapore", "129": "🇳🇵 Nepal",
-    "130": "🇧🇹 Bhutan", "131": "🇲🇻 Maldives", "132": "🇧🇳 Brunei", "133": "🇹🇲 Turkmenistan", "134": "🇹🇯 Tajikistan",
-    "135": "🇸🇾 Syria", "136": "🇵🇸 Palestine", "137": "🇱🇾 Libya", "138": "🇹🇳 Tunisia", "139": "🇩🇿 Algeria",
-    "140": "🇲🇷 Mauritania", "141": "🇪🇷 Eritrea", "142": "🇩🇯 Djibouti", "143": "🇸🇸 South Sudan", "144": "🇦🇺 Australia",
-    "145": "🇵🇬 Papua New Guinea", "146": "🇫🇯 Fiji", "147": "🇸🇧 Solomon Is.", "148": "🇻🇺 Vanuatu", "149": "🇼🇸 Samoa",
-    "150": "🇹🇴 Tonga", "151": "🇧🇿 Belize", "152": "🇬🇹 Guatemala", "153": "🇸🇻 El Salvador", "154": "🇭🇳 Honduras",
-    "155": "🇳🇮 Nicaragua", "156": "🇬🇾 Guyana", "157": "🇸🇷 Suriname", "158": "🇧🇸 Bahamas", "159": "🇧🇧 Barbados",
-    "160": "🇹🇹 Trinidad", "161": "🇬🇩 Grenada", "162": "🇱🇨 St. Lucia", "163": "🇻🇨 St. Vincent", "164": "🇦🇬 Antigua",
-    "165": "🇰🇳 St. Kitts", "166": "🇩🇲 Dominica", "167": "🇨🇻 Cape Verde", "168": "🇸🇹 Sao Tome", "169": "🇬🇼 Guinea-Bissau",
-    "170": "🇬🇶 Eq. Guinea", "171": "🇬🇦 Gabon", "172": "🇨🇫 CAR", "173": "🇰🇲 Comoros", "174": "🇲🇺 Mauritius",
-    "175": "🇸🇨 Seychelles", "176": "🇱🇸 Lesotho", "177": "🇧🇼 Botswana", "178": "🇦🇩 Andorra", "179": "🇸🇲 San Marino",
-    "180": "🇻🇦 Vatican", "181": "🇲🇨 Monaco", "182": "🇯🇵 Japan", "183": "🇰🇷 S. Korea", "184": "🇹🇼 Taiwan",
-    "185": "🇭🇰 Hong Kong", "186": "🇲🇴 Macau", "187": "🇸🇬 Singapore"
+    "4": "🇵🇭 Philippines", "6": "🇮🇩 Indonesia", "12": "🇺🇸 USA", "22": "🇮🇳 India",
+    "31": "🇿🇦 South Africa", "116": "🇾🇪 Yemen", "135": "🇸🇾 Syria"
 }
 
 async def get_all_country_list():
@@ -128,33 +134,27 @@ async def get_all_country_list():
                 full_list = []
                 for c in countries_data:
                     code = str(c.get("country_code", c.get("id", "0")))
-                    base_price = float(c.get("price", DEFAULT_PRICE))
+                    api_name = c.get("country", "").strip()
                     
-                    # Apply specific price overrides first
-                    if code == "135" or "syria" in c.get("country", "").lower():
-                        final_price = 80.0
-                    elif code == "116" or "yemen" in c.get("country", "").lower():
-                        final_price = 70.0
-                    elif code == "6" or "indonesia" in c.get("country", "").lower():
+                    # Match price directly from screen recording mapping dictionary
+                    final_price = EXACT_PRices.get(api_name, 150.0)
+                    
+                    # Apply specific overrides if matched by code or name
+                    if code == "6" or "indonesia" in api_name.lower():
                         final_price = 50.0
-                    elif code == "31" or "south africa" in c.get("country", "").lower():
-                        final_price = 60.0
-                    elif code == "12" or "usa" in c.get("country", "").lower():
+                    elif code == "12" or "usa" in api_name.lower():
                         final_price = 120.0
-                    else:
-                        # Apply tier multipliers based on base price rules:
-                        # > 200 -> 1.4x
-                        # > 100 -> 1.5x
-                        # < 100 -> 1.6x
-                        if base_price > 200.0:
-                            final_price = base_price * 1.4
-                        elif base_price > 100.0:
-                            final_price = base_price * 1.5
-                        else:
-                            final_price = base_price * 1.6
+                    elif code == "22" or "india" in api_name.lower():
+                        final_price = 187.0
+                    elif code == "31" or "south africa" in api_name.lower():
+                        final_price = 60.0
+                    elif code == "116" or "yemen" in api_name.lower():
+                        final_price = 70.0
+                    elif code == "135" or "syria" in api_name.lower():
+                        final_price = 80.0
 
-                    raw_name = COUNTRY_NAMES.get(code, f"🌍 {c.get('country', 'Country ' + code)}")
-                    clean_name = raw_name.split(" ", 1)[1] if " " in raw_name else raw_name
+                    raw_name = COUNTRY_NAMES.get(code, f"🌍 {api_name}")
+                    clean_name = api_name if api_name else f"Country {code}"
                     
                     full_list.append({
                         "name": f"{raw_name} - ₹{final_price:.2f}",
@@ -169,25 +169,15 @@ async def get_all_country_list():
         except Exception as e:
             logging.error(f"Error fetching live pricing from API: {e}")
 
-    # Fallback static list if API query fails
+    # Fallback list mapping from exact dictionary if API is unreachable
     fallback_list = []
-    for code, name in COUNTRY_NAMES.items():
-        base_price = DEFAULT_PRICE
-        if code == "135":
-            final_price = 80.0
-        elif code == "116":
-            final_price = 70.0
-        elif code == "6":
-            final_price = 50.0
-        elif code == "31":
-            final_price = 60.0
-        elif code == "12":
-            final_price = 120.0
-        else:
-            final_price = base_price * 1.4 # Default fallback tier
-            
-        clean_name = name.split(" ", 1)[1] if " " in name else name
-        fallback_list.append({"name": f"{name} - ₹{final_price:.2f}", "code": code, "raw_name": clean_name, "price": final_price})
+    for name, price in EXACT_PRices.items():
+        fallback_list.append({
+            "name": f"🌍 {name} - ₹{price:.2f}",
+            "code": "0",
+            "raw_name": name,
+            "price": price
+        })
     fallback_list.sort(key=lambda x: x["raw_name"])
     return fallback_list
 
@@ -270,12 +260,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         referral_counts[referrer_id] = referral_counts.get(referrer_id, 0) + 1
                         
                         current_ref_bal = user_balances.get(referrer_id, 0.0)
-                        user_balances[referrer_id] = current_ref_bal + 5.0
+                        user_balances[referrer_id] = current_ref_bal + 2.0
                         
                         try:
                             await context.bot.send_message(
                                 chat_id=referrer_id,
-                                text=f"🎉 <b>Referral Bonus Earned!</b>\n\nA new user joined via your link. ₹5.00 has been added to your balance.\nNew Balance: ₹{user_balances[referrer_id]:.2f}",
+                                text=f"🎉 <b>Referral Bonus Earned!</b>\n\nA new user joined via your link. ₹2.00 has been added to your balance.\nNew Balance: ₹{user_balances[referrer_id]:.2f}",
                                 parse_mode="HTML"
                             )
                         except Exception:
@@ -326,7 +316,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     bottom_markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
     inline_keyboard = [
-        [InlineKeyboardButton("🛒 Buy Number (180+ Countries)", callback_data="buy_menu_0")], 
+        [InlineKeyboardButton("🛒 Buy Number (All Countries)", callback_data="buy_menu_0")], 
         [InlineKeyboardButton("🎁 Gift", callback_data="gift_menu"), InlineKeyboardButton("👥 Refer & Earn", callback_data="refer_menu")],
         [InlineKeyboardButton("💳 Deposit", callback_data="deposit_menu")]
     ]
@@ -448,9 +438,9 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
         refs = referral_counts.get(user_id, 0)
         text_msg = (
             f"👥 <b>Refer & Earn Program</b>\n\n"
-            f"Earn <b>₹5.00</b> directly into your balance for every unique user who starts the bot using your referral link!\n\n"
+            f"Earn <b>₹2.00</b> directly into your balance for every unique user who starts the bot using your referral link!\n\n"
             f"📊 <b>Your Total Valid Referrals:</b> {refs}\n"
-            f"💰 <b>Total Earned:</b> ₹{refs * 5.00:.2f}\n\n"
+            f"💰 <b>Total Earned:</b> ₹{refs * 2.00:.2f}\n\n"
             f"🔗 <b>Your Referral Link:</b>\n<code>{ref_link}</code>"
         )
         await update.message.reply_text(text_msg, parse_mode="HTML", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]]))
@@ -626,9 +616,9 @@ async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         refs = referral_counts.get(user_id, 0)
         text_msg = (
             f"👥 <b>Refer & Earn Program</b>\n\n"
-            f"Earn <b>₹5.00</b> directly into your balance for every unique user who starts the bot using your referral link!\n\n"
+            f"Earn <b>₹2.00</b> directly into your balance for every unique user who starts the bot using your referral link!\n\n"
             f"📊 <b>Your Total Valid Referrals:</b> {refs}\n"
-            f"💰 <b>Total Earned:</b> ₹{refs * 5.00:.2f}\n\n"
+            f"💰 <b>Total Earned:</b> ₹{refs * 2.00:.2f}\n\n"
             f"🔗 <b>Your Referral Link:</b>\n<code>{ref_link}</code>"
         )
         await safe_send_or_edit(update, context, text_msg, InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]]))
@@ -741,14 +731,12 @@ async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
             try:
                 buyer = query.from_user
                 buyer_username = f"@{buyer.username}" if buyer.username else f"{buyer.first_name} (No username)"
-                country_name = COUNTRY_NAMES.get(country_code, f"Country {country_code}")
                 await context.bot.send_message(
                     chat_id=ADMIN_CHANNEL_ID,
                     text=(
                         f"🛒 <b>New Number Purchased!</b>\n\n"
                         f"• <b>Buyer:</b> {buyer.first_name} ({buyer_username})\n"
                         f"• <b>Buyer ID:</b> <code>{buyer.id}</code>\n"
-                        f"• <b>Country:</b> {country_name}\n"
                         f"• <b>Price Paid:</b> ₹{price:.2f}\n"
                         f"• <b>Phone Number:</b> <code>+{number}</code>"
                     ),
@@ -826,7 +814,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
     app.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND, handle_photo_messages))
     app.add_handler(CallbackQueryHandler(button_router))
-    print("🚀 Bot Online with Tiers (<100: 1.6x, >100: 1.5x, >200: 1.4x) and Specific Country Overrides!")
+    print("🚀 Bot Online with Exact Screen Recording Prices & ₹2 Referral Bonus!")
     
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
