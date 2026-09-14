@@ -141,8 +141,8 @@ def get_all_country_list():
     full_list = []
     for code, name in COUNTRY_NAMES.items():
         price = COUNTRY_PRICES.get(code, DEFAULT_PRICE)
-        clean_name = name.split(" ", 1)[1] if " " in name else name
-        full_list.append({"name": f"{clean_name} - ₹{price:.2f}", "code": code, "raw_name": clean_name, "price": price})
+        # Keeping flag emoji included with name for buttons
+        full_list.append({"name": f"{name} - ₹{price:.2f}", "code": code, "raw_name": name, "price": price})
     full_list.sort(key=lambda x: x["raw_name"])
     return full_list
 
@@ -766,7 +766,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
     app.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND, handle_photo_messages))
     app.add_handler(CallbackQueryHandler(button_router))
-    print("🚀 Bot Online with Indonesia (₹50) and USA (₹115) Prices Updated!")
+    print("🚀 Bot Online with Country Flags Included, Indonesia (₹50), USA (₹115), and All Features!")
     
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
