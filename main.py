@@ -207,28 +207,64 @@ class SastaSMSProvider:
         self.base_url = "https://sastasms.pro/stubs/handler_api.php"
 
     async def get_number(self, service: str = "wa", country: str = "0"):
-        params = {"api_key": self.api_key, "action": "getNumber", "service": service, "country": country}
+        # Explicitly request JSON format to prevent parsing glitches with plain text responses
+        params = {
+            "api_key": self.api_key, 
+            "action": "getNumber", 
+            "service": service, 
+            "country": country,
+            "format": "json"
+        }
         async with httpx.AsyncClient() as client:
             try:
                 response = await client.get(self.base_url, params=params, timeout=15)
-                text = response.text.strip()
-                if text.startswith("ACCESS_NUMBER"):
-                    parts = text.split(":")
-                    if len(parts) >= 3:
-                        return {"status": "SUCCESS", "id": parts[1], "number": parts[2]}
-                return {"status": "ERROR", "message": f"Provider error: {text}"}
+                
+                # Check if response can be parsed as JSON
+                try:
+                    data = response.json()
+                except Exception:
+                    text = response.text.strip()
+                    # Fallback check if it's standard plain text (e.g. ACCESS_NUMBER:id:number)
+                    if text.startswith("ACCESS_NUMBER"):
+                        parts = text.split(":")
+                        if len(parts) >= 3:
+                            return {"status": "SUCCESS", "id": parts[1], "number": parts[2]}
+                    return {"status": "ERROR", "message": f"Provider error: {text}"}
+
+                # Handle SastaSMS JSON response structure or fallback standard layout
+                if isinstance(data, dict):
+                    if data.get("status") == "OK" or "activation_id" in data or "order_id" in data:
+                        activation_id = str(data.get("activation_id") or data.get("order_id"))
+                        phone_number = str(data.get("phone_number") or data.get("number"))
+                        return {"status": "SUCCESS", "id": activation_id, "number": phone_number}
+                    
+                    err_msg = data.get("msg") or data.get("message") or str(data)
+                    return {"status": "ERROR", "message": f"Provider error: {err_msg}"}
+                
+                return {"status": "ERROR", "message": f"Invalid response format: {response.text}"}
+
             except Exception as e: 
                 return {"status": "ERROR", "message": str(e)}
 
     async def get_status(self, order_id: str):
-        params = {"api_key": self.api_key, "action": "getStatus", "id": order_id}
+        params = {"api_key": self.api_key, "action": "getStatus", "id": order_id, "format": "json"}
         async with httpx.AsyncClient() as client:
             try:
                 response = await client.get(self.base_url, params=params, timeout=12)
-                text = response.text.strip()
-                if text.startswith("STATUS_OK"): return {"status": "RECEIVED", "code": text.split(":")[1]}
-                elif text == "STATUS_WAIT_CODE": return {"status": "WAITING"}
-                else: return {"status": "OTHER", "message": text}
+                try:
+                    data = response.json()
+                    status_text = str(data.get("status") or data.get("msg") or "")
+                    if status_text == "STATUS_OK" or "OK" in status_text.upper():
+                        return {"status": "RECEIVED", "code": data.get("code") or data.get("sms")}
+                    elif status_text == "STATUS_WAIT_CODE" or "WAIT" in status_text.upper():
+                        return {"status": "WAITING"}
+                    else:
+                        return {"status": "OTHER", "message": status_text}
+                except Exception:
+                    text = response.text.strip()
+                    if text.startswith("STATUS_OK"): return {"status": "RECEIVED", "code": text.split(":")[1]}
+                    elif text == "STATUS_WAIT_CODE": return {"status": "WAITING"}
+                    else: return {"status": "OTHER", "message": text}
             except Exception as e: return {"status": "ERROR", "message": str(e)}
 
     async def set_status(self, order_id: str, status: int):
@@ -814,7 +850,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
     app.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND, handle_photo_messages))
     app.add_handler(CallbackQueryHandler(button_router))
-    print("🚀 Bot Online with Exact Screen Recording Prices & ₹2 Referral Bonus!")
+    print("🚀 Bot Online with Fixed JSON/Text Response Parsing & Robust Error Handlers!")
     
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
