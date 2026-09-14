@@ -855,6 +855,7 @@ def run_health_server():
 def main():
     threading.Thread(target=run_health_server, daemon=True).start()
     app = ApplicationBuilder().token(BOT_TOKEN).build()
+    
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("add", add_balance))
     app.add_handler(CommandHandler("deduct", deduct_balance))
@@ -864,11 +865,11 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
     app.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND, handle_photo_messages))
     app.add_handler(CallbackQueryHandler(button_router))
+    
     print("💎 WHATSAPP VAULT PREMIUM is now Online! Live Dynamic API Routing + 0ms Cache! 💎")
     
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    app.run_polling()
+    # This prevents the bot from choking on old, stuck clicks when restarted
+    app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
     main()
