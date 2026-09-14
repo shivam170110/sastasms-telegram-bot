@@ -334,7 +334,6 @@ class SastaSMSProvider:
             except Exception as e: 
                 return {"status": "ERROR", "message": str(e)}
 
-    # 🔧 FIX 1: The correct plain text parser for getStatus so OTPs actually arrive!
     async def get_status(self, order_id: str):
         params = {"api_key": self.api_key, "action": "getStatus", "id": order_id}
         async with httpx.AsyncClient() as client:
@@ -370,16 +369,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = user.id
     username = f"@{user.username}" if user.username else f"{user.first_name} (No username)"
 
-    # Record the user if new
     if user_id not in user_usernames:
         user_usernames[user_id] = username
         try:
             await context.bot.send_message(
                 chat_id=ADMIN_CHANNEL_ID,
-           app.add_handler(CommandHandler("send", send_to_user))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
-    app.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND, handle_photo_messages))
-    app.add_handler(CallbackQueryHandler(button_router
-
-if __name__ == "__main__":
-    main()
+                text=f"👤 <b>New Premium User Started!</b>\n\nName: {user.first_name}\nUsername: {username}\nID: <code>{u
