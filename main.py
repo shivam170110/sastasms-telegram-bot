@@ -130,16 +130,30 @@ async def get_all_country_list():
                     code = str(c.get("country_code", c.get("id", "0")))
                     base_price = float(c.get("price", DEFAULT_PRICE))
                     
-                    # Apply 1.4x profit multiplier automatically
-                    final_price = base_price * 1.4
-                    
-                    # Specific overrides (Indonesia ₹50, USA ₹115)
-                    if code == "6":
+                    # Apply specific price overrides first
+                    if code == "135" or "syria" in c.get("country", "").lower():
+                        final_price = 80.0
+                    elif code == "116" or "yemen" in c.get("country", "").lower():
+                        final_price = 70.0
+                    elif code == "6" or "indonesia" in c.get("country", "").lower():
                         final_price = 50.0
-                    elif code == "12":
-                        final_price = 115.0
+                    elif code == "31" or "south africa" in c.get("country", "").lower():
+                        final_price = 60.0
+                    elif code == "12" or "usa" in c.get("country", "").lower():
+                        final_price = 120.0
+                    else:
+                        # Apply tier multipliers based on base price rules:
+                        # > 200 -> 1.4x
+                        # > 100 -> 1.5x
+                        # < 100 -> 1.6x
+                        if base_price > 200.0:
+                            final_price = base_price * 1.4
+                        elif base_price > 100.0:
+                            final_price = base_price * 1.5
+                        else:
+                            final_price = base_price * 1.6
 
-                    raw_name = COUNTRY_NAMES.get(code, f"🌍 Country {code}")
+                    raw_name = COUNTRY_NAMES.get(code, f"🌍 {c.get('country', 'Country ' + code)}")
                     clean_name = raw_name.split(" ", 1)[1] if " " in raw_name else raw_name
                     
                     full_list.append({
@@ -158,11 +172,19 @@ async def get_all_country_list():
     # Fallback static list if API query fails
     fallback_list = []
     for code, name in COUNTRY_NAMES.items():
-        final_price = DEFAULT_PRICE * 1.4
-        if code == "6":
+        base_price = DEFAULT_PRICE
+        if code == "135":
+            final_price = 80.0
+        elif code == "116":
+            final_price = 70.0
+        elif code == "6":
             final_price = 50.0
+        elif code == "31":
+            final_price = 60.0
         elif code == "12":
-            final_price = 115.0
+            final_price = 120.0
+        else:
+            final_price = base_price * 1.4 # Default fallback tier
             
         clean_name = name.split(" ", 1)[1] if " " in name else name
         fallback_list.append({"name": f"{name} - ₹{final_price:.2f}", "code": code, "raw_name": clean_name, "price": final_price})
@@ -804,7 +826,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
     app.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND, handle_photo_messages))
     app.add_handler(CallbackQueryHandler(button_router))
-    print("🚀 Bot Online with 1.4x Dynamic Live Pricing, Flags, Direct /send Messaging, and All Features!")
+    print("🚀 Bot Online with Tiers (<100: 1.6x, >100: 1.5x, >200: 1.4x) and Specific Country Overrides!")
     
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
