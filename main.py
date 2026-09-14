@@ -72,110 +72,169 @@ active_orders = {}
 ITEMS_PER_PAGE = 15  
 
 # ==========================================
-# 📋 EXACT HARDCODED RETAIL PRICES FROM SCREEN RECORDING
+# 📋 MASTER COUNTRY MAPPING (Name, Numeric ID, Exact Retail Price)
 # ==========================================
-EXACT_PRices = {
-    "Philippines": 69.57, "Dominican Republic": 74.93, "Jordan": 74.93, "South Sudan": 74.93,
-    "Trinidad and Tobago": 74.93, "Bosnia and Herzegovina": 74.93, "Albania": 77.07, "Venezuela": 77.07,
-    "Costa Rica": 77.07, "Hong Kong": 81.34, "French Guiana": 81.34, "Guadeloupe": 81.34,
-    "Saint Lucia": 81.34, "Cape Verde": 81.34, "Sao Tome & Principe": 81.34, "Djibouti": 81.34,
-    "Cayman Islands": 81.34, "Saint Vincent": 81.34, "Andorra": 83.34, "Greenland": 83.34,
-    "Saudi Arabia": 85.63, "Malaysia": 85.63, "Comoros": 85.63, "Reunion": 85.63, "Mauritius": 85.63,
-    "Seychelles": 85.63, "New Caledonia": 85.63, "United Kingdom": 92.05, "Madagascar": 92.05,
-    "Tanzania": 92.05, "Algeria": 92.05, "Liberia": 92.05, "Tajikistan": 92.05, "Kyrgyzstan": 92.05,
-    "Ghana": 92.05, "Sierra Leone": 92.05, "Swaziland": 92.05, "Zambia": 92.05, "Malawi": 92.05,
-    "Haiti": 92.05, "Gambia": 92.05, "Equatorial Guinea": 92.05, "Zimbabwe": 93.12, "Cameroon": 94.19,
-    "Egypt": 96.34, "Belize": 96.34, "DR Congo": 96.34, "Aruba": 96.34, "Eritrea": 96.34,
-    "Jamaica": 98.48, "Kosovo": 100.61, "Niger": 104.90, "Lebanon": 104.90, "Burundi": 104.90,
-    "Iran": 104.90, "Ethiopia": 107.04, "Iraq": 107.04, "Peru": 107.04, "Luxembourg": 107.04,
-    "Gabon": 107.04, "Guinea": 109.18, "Namibia": 109.18, "Bangladesh": 111.31, "Benin": 111.31,
-    "Kenya": 111.31, "Ivory Coast": 111.31, "Afghanistan": 111.31, "Burkina Faso": 111.31,
-    "Nigeria": 113.46, "Thailand": 113.46, "Qatar": 113.46, "Slovakia": 113.46, "Uzbekistan": 113.46,
-    "Senegal": 113.46, "Suriname": 113.46, "Monaco": 113.46, "Niue": 113.46, "Azerbaijan": 115.60,
-    "Bahrain": 115.60, "Angola": 117.74, "Anguilla": 117.74, "Ukraine": 119.89, "Myanmar": 119.89,
-    "Sri Lanka": 119.89, "Libya": 119.89, "Mozambique": 119.89, "Turkey": 126.30, "Nicaragua": 126.30,
-    "Guatemala": 126.30, "Turkmenistan": 126.30, "Tunisia": 126.30, "Chad": 126.30, "Nepal": 126.30,
-    "Honduras": 126.30, "Guyana": 126.30, "Maldives": 126.30, "Timor-Leste": 126.30, "Montenegro": 126.30,
-    "Puerto Rico": 126.30, "Montserrat": 126.30, "Saint Kitts & Nevis": 126.30, "Macedonia": 126.30,
-    "Iceland": 126.30, "Salvador": 126.30, "Bermuda": 126.30, "China": 128.45, "Serbia": 128.45,
-    "Latvia": 128.45, "Panama": 130.59, "Lao": 130.59, "Mali": 130.59, "Uruguay": 130.59,
-    "Palestine": 138.90, "Argentina": 139.15, "Papua New Guinea": 139.15, "Mexico": 145.57,
-    "Cambodia": 147.71, "Togo": 149.86, "Georgia": 156.27, "Poland": 158.42, "Armenia": 158.42,
-    "Belarus": 150.53, "Greece": 160.56, "United Arab Emirates": 160.56, "Paraguay": 162.56,
-    "Norway": 162.56, "Estonia": 172.59, "Moldova": 172.59, "Samoa": 172.59, "Tonga": 172.59,
-    "Liechtenstein": 172.59, "South Korea": 172.59, "American Samoa": 172.59, "Sint Maarten": 172.59,
-    "Sweden": 188.66, "Country #173": 200.70, "Denmark": 202.70, "Netherlands": 206.72,
-    "Romania": 212.73, "Lithuania": 220.77, "Kuwait": 226.79, "Israel": 226.79, "Hungary": 226.79,
-    "Brazil": 240.83, "Czechia": 240.83, "Kazakhstan": 248.87, "Croatia": 260.90, "Macao": 262.91,
-    "Bulgaria": 276.96, "Germany": 280.97, "Belgium": 337.16, "Cyprus": 352.16, "Spain": 355.89,
-    "Finland": 421.46, "France": 468.29, "Pakistan": 468.29, "New Zealand": 505.75, "Italy": 543.21,
-    "Australia": 599.41, "Austria": 636.87, "Taiwan": 878.50, "Singapore": 936.57, "Ireland": 1685.82,
-    "Japan": 2200.94, "Gibraltar": 4214.56,
-    "Indonesia": 50.0, "Yemen": 70.0, "Syria": 80.0, "South Africa": 60.0, "USA": 120.0, "India": 187.0
-}
-
-COUNTRY_NAMES = {
-    "4": "🇵🇭 Philippines", "6": "🇮🇩 Indonesia", "12": "🇺🇸 USA", "22": "🇮🇳 India",
-    "31": "🇿🇦 South Africa", "116": "🇾🇪 Yemen", "135": "🇸🇾 Syria"
-}
+COUNTRY_DATABASE = [
+    {"code": "4", "name": "🇵🇭 Philippines", "price": 69.57},
+    {"code": "121", "name": "🇩🇴 Dominican Republic", "price": 74.93},
+    {"code": "110", "name": "🇯🇴 Jordan", "price": 74.93},
+    {"code": "143", "name": "🇸🇸 South Sudan", "price": 74.93},
+    {"code": "160", "name": "🇹🇹 Trinidad and Tobago", "price": 74.93},
+    {"code": "83", "name": "🇧🇦 Bosnia and Herzegovina", "price": 74.93},
+    {"code": "78", "name": "🇦🇱 Albania", "price": 77.07},
+    {"code": "58", "name": "🇻🇪 Venezuela", "price": 77.07},
+    {"code": "118", "name": "🇨🇷 Costa Rica", "price": 77.07},
+    {"code": "14", "name": "🇭🇰 Hong Kong", "price": 81.34},
+    {"code": "167", "name": "🇨🇻 Cape Verde", "price": 81.34},
+    {"code": "142", "name": "🇩🇯 Djibouti", "price": 81.34},
+    {"code": "163", "name": "🇻🇨 Saint Vincent", "price": 81.34},
+    {"code": "178", "name": "🇦🇩 Andorra", "price": 83.34},
+    {"code": "108", "name": "🇸🇦 Saudi Arabia", "price": 85.63},
+    {"code": "7", "name": "🇲🇾 Malaysia", "price": 85.63},
+    {"code": "173", "name": "🇰🇲 Comoros", "price": 85.63},
+    {"code": "174", "name": "🇲🇺 Mauritius", "price": 85.63},
+    {"code": "175", "name": "🇸🇨 Seychelles", "price": 85.63},
+    {"code": "16", "name": "🇬🇧 United Kingdom", "price": 92.05},
+    {"code": "17", "name": "🇲🇬 Madagascar", "price": 92.05},
+    {"code": "9", "name": "🇹🇿 Tanzania", "price": 92.05},
+    {"code": "139", "name": "🇩🇿 Algeria", "price": 92.05},
+    {"code": "134", "name": "🇹🇯 Tajikistan", "price": 92.05},
+    {"code": "11", "name": "🇰🇬 Kyrgyzstan", "price": 92.05},
+    {"code": "38", "name": "🇬🇭 Ghana", "price": 92.05},
+    {"code": "72", "name": "🇸🇱 Sierra Leone", "price": 92.05},
+    {"code": "75", "name": "🇸🇿 Swaziland", "price": 92.05},
+    {"code": "77", "name": "🇿🇲 Zambia", "price": 92.05},
+    {"code": "68", "name": "🇲🇼 Malawi", "price": 92.05},
+    {"code": "26", "name": "🇭🇹 Haiti", "price": 92.05},
+    {"code": "28", "name": "🇬🇲 Gambia", "price": 92.05},
+    {"code": "170", "name": "🇬🇶 Equatorial Guinea", "price": 92.05},
+    {"code": "67", "name": "🇿🇼 Zimbabwe", "price": 93.12},
+    {"code": "41", "name": "🇨🇲 Cameroon", "price": 94.19},
+    {"code": "21", "name": "🇪🇬 Egypt", "price": 96.34},
+    {"code": "151", "name": "🇧🇿 Belize", "price": 96.34},
+    {"code": "18", "name": "🇨🇬 DR Congo", "price": 96.34},
+    {"code": "141", "name": "🇪🇷 Eritrea", "price": 96.34},
+    {"code": "122", "name": "🇯🇲 Jamaica", "price": 98.48},
+    {"code": "100", "name": "🇲🇪 Kosovo", "price": 100.61},
+    {"code": "70", "name": "🇳🇪 Niger", "price": 104.90},
+    {"code": "111", "name": "🇱🇧 Lebanon", "price": 104.90},
+    {"code": "59", "name": "🇪🇹 Ethiopia", "price": 107.04},
+    {"code": "30", "name": "🇮🇶 Iraq", "price": 107.04},
+    {"code": "53", "name": "🇵🇪 Peru", "price": 107.04},
+    {"code": "51", "name": "🇱🇺 Luxembourg", "price": 107.04},
+    {"code": "171", "name": "🇬🇦 Gabon", "price": 107.04},
+    {"code": "56", "name": "🇬🇳 Guinea", "price": 109.18},
+    {"code": "69", "name": "🇳🇦 Namibia", "price": 109.18},
+    {"code": "93", "name": "🇧🇩 Bangladesh", "price": 111.31},
+    {"code": "8", "name": "🇰🇪 Kenya", "price": 111.31},
+    {"code": "27", "name": "🇨🇮 Ivory Coast", "price": 111.31},
+    {"code": "62", "name": "🇦🇫 Afghanistan", "price": 111.31},
+    {"code": "19", "name": "🇳🇬 Nigeria", "price": 113.46},
+    {"code": "105", "name": "🇹🇭 Thailand", "price": 113.46},
+    {"code": "113", "name": "🇶🇦 Qatar", "price": 113.46},
+    {"code": "103", "name": "🇸🇰 Slovakia", "price": 113.46},
+    {"code": "40", "name": "🇺🇿 Uzbekistan", "price": 113.46},
+    {"code": "47", "name": "🇸🇳 Senegal", "price": 113.46},
+    {"code": "157", "name": "🇸🇷 Suriname", "price": 113.46},
+    {"code": "99", "name": "🇲🇨 Monaco", "price": 113.46},
+    {"code": "35", "name": "🇦🇿 Azerbaijan", "price": 115.60},
+    {"code": "115", "name": "🇧🇭 Bahrain", "price": 115.60},
+    {"code": "64", "name": "🇦🇴 Angola", "price": 117.74},
+    {"code": "1", "name": "🇺🇦 Ukraine", "price": 119.89},
+    {"code": "5", "name": "🇲🇲 Myanmar", "price": 119.89},
+    {"code": "52", "name": "🇱🇰 Sri Lanka", "price": 119.89},
+    {"code": "137", "name": "🇱🇾 Libya", "price": 119.89},
+    {"code": "49", "name": "🇹🇷 Turkey", "price": 126.30},
+    {"code": "155", "name": "🇳🇮 Nicaragua", "price": 126.30},
+    {"code": "152", "name": "🇬🇹 Guatemala", "price": 126.30},
+    {"code": "133", "name": "🇹🇲 Turkmenistan", "price": 126.30},
+    {"code": "138", "name": "🇹🇳 Tunisia", "price": 126.30},
+    {"code": "42", "name": "🇹🇩 Chad", "price": 126.30},
+    {"code": "129", "name": "🇳🇵 Nepal", "price": 126.30},
+    {"code": "154", "name": "🇭🇳 Honduras", "price": 126.30},
+    {"code": "156", "name": "🇬🇾 Guyana", "price": 126.30},
+    {"code": "131", "name": "🇲🇻 Maldives", "price": 126.30},
+    {"code": "100", "name": "🇲🇪 Montenegro", "price": 126.30},
+    {"code": "96", "name": "🇲🇰 Macedonia", "price": 126.30},
+    {"code": "91", "name": "🇮🇸 Iceland", "price": 126.30},
+    {"code": "153", "name": "🇸🇻 Salvador", "price": 126.30},
+    {"code": "3", "name": "🇨🇳 China", "price": 128.45},
+    {"code": "94", "name": "🇱🇻 Latvia", "price": 128.45},
+    {"code": "119", "name": "🇵🇦 Panama", "price": 130.59},
+    {"code": "25", "name": "🇱🇦 Lao", "price": 130.59},
+    {"code": "57", "name": "🇲🇱 Mali", "price": 130.59},
+    {"code": "126", "name": "🇺🇾 Uruguay", "price": 130.59},
+    {"code": "136", "name": "🇵🇸 Palestine", "price": 138.90},
+    {"code": "39", "name": "🇦🇷 Argentina", "price": 139.15},
+    {"code": "145", "name": "🇵🇬 Papua New Guinea", "price": 139.15},
+    {"code": "117", "name": "🇲🇽 Mexico", "price": 145.57},
+    {"code": "24", "name": "🇰🇭 Cambodia", "price": 147.71},
+    {"code": "76", "name": "🇹🇬 Togo", "price": 149.86},
+    {"code": "88", "name": "🇬🇪 Georgia", "price": 156.27},
+    {"code": "15", "name": "🇵🇱 Poland", "price": 158.42},
+    {"code": "79", "name": "🇦🇲 Armenia", "price": 158.42},
+    {"code": "81", "name": "🇧🇾 Belarus", "price": 150.53},
+    {"code": "89", "name": "🇬🇷 Greece", "price": 160.56},
+    {"code": "109", "name": "🇦🇪 United Arab Emirates", "price": 160.56},
+    {"code": "125", "name": "🇵🇾 Paraguay", "price": 162.56},
+    {"code": "102", "name": "🇳🇴 Norway", "price": 162.56},
+    {"code": "34", "name": "🇪🇪 Estonia", "price": 172.59},
+    {"code": "98", "name": "🇲🇩 Moldova", "price": 172.59},
+    {"code": "149", "name": "🇼🇸 Samoa", "price": 172.59},
+    {"code": "150", "name": "🇹🇴 Tonga", "price": 172.59},
+    {"code": "95", "name": "🇱🇮 Liechtenstein", "price": 172.59},
+    {"code": "107", "name": "🇰🇷 South Korea", "price": 172.59},
+    {"code": "29", "name": "🇸🇪 Sweden", "price": 188.66},
+    {"code": "85", "name": "🇩🇰 Denmark", "price": 202.70},
+    {"code": "101", "name": "🇳🇱 Netherlands", "price": 206.72},
+    {"code": "32", "name": "🇷🇴 Romania", "price": 212.73},
+    {"code": "44", "name": "🇱🇹 Lithuania", "price": 220.77},
+    {"code": "114", "name": "🇰🇼 Kuwait", "price": 226.79},
+    {"code": "13", "name": "🇮🇱 Israel", "price": 226.79},
+    {"code": "90", "name": "🇭🇺 Hungary", "price": 226.79},
+    {"code": "61", "name": "🇧🇷 Brazil", "price": 240.83},
+    {"code": "50", "name": "🇨🇿 Czechia", "price": 240.83},
+    {"code": "2", "name": "🇰🇿 Kazakhstan", "price": 248.87},
+    {"code": "45", "name": "🇭🇷 Croatia", "price": 260.90},
+    {"code": "20", "name": "🇲🇴 Macao", "price": 262.91},
+    {"code": "84", "name": "🇧🇬 Bulgaria", "price": 276.96},
+    {"code": "43", "name": "🇩🇪 Germany", "price": 280.97},
+    {"code": "82", "name": "🇧🇪 Belgium", "price": 337.16},
+    {"code": "65", "name": "🇨🇾 Cyprus", "price": 352.16},
+    {"code": "86", "name": "🇪🇸 Spain", "price": 355.89},
+    {"code": "87", "name": "🇫🇮 Finland", "price": 421.46},
+    {"code": "66", "name": "🇫🇷 France", "price": 468.29},
+    {"code": "54", "name": "🇵🇰 Pakistan", "price": 468.29},
+    {"code": "55", "name": "🇳🇿 New Zealand", "price": 505.75},
+    {"code": "92", "name": "🇮🇹 Italy", "price": 543.21},
+    {"code": "144", "name": "🇦🇺 Australia", "price": 599.41},
+    {"code": "80", "name": "🇦🇹 Austria", "price": 636.87},
+    {"code": "127", "name": "🇹🇼 Taiwan", "price": 878.50},
+    {"code": "128", "name": "🇸🇬 Singapore", "price": 936.57},
+    {"code": "23", "name": "🇮🇪 Ireland", "price": 1685.82},
+    {"code": "106", "name": "🇯🇵 Japan", "price": 2200.94},
+    # Custom Overrides requested
+    {"code": "6", "name": "🇮🇩 Indonesia", "price": 50.0},
+    {"code": "116", "name": "🇾🇪 Yemen", "price": 70.0},
+    {"code": "135", "name": "🇸🇾 Syria", "price": 80.0},
+    {"code": "31", "name": "🇿🇦 South Africa", "price": 60.0},
+    {"code": "12", "name": "🇺🇸 USA", "price": 120.0},
+    {"code": "22", "name": "🇮🇳 India", "price": 187.0},
+    {"code": "0", "name": "🇷🇺 Russia", "price": 350.0}
+]
 
 async def get_all_country_list():
-    url = "https://sastasms.pro/stubs/handler_api.php"
-    params = {"api_key": SASTASMS_API_KEY, "action": "getServicesList", "service": "wa", "format": "json"}
-    
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.get(url, params=params, timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-                countries_data = data.get("countries", [])
-                
-                full_list = []
-                for c in countries_data:
-                    code = str(c.get("country_code", c.get("id", "0")))
-                    api_name = c.get("country", "").strip()
-                    
-                    final_price = EXACT_PRices.get(api_name, 150.0)
-                    
-                    if code == "6" or "indonesia" in api_name.lower():
-                        final_price = 50.0
-                    elif code == "12" or "usa" in api_name.lower():
-                        final_price = 120.0
-                    elif code == "22" or "india" in api_name.lower():
-                        final_price = 187.0
-                    elif code == "31" or "south africa" in api_name.lower():
-                        final_price = 60.0
-                    elif code == "116" or "yemen" in api_name.lower():
-                        final_price = 70.0
-                    elif code == "135" or "syria" in api_name.lower():
-                        final_price = 80.0
-
-                    raw_name = COUNTRY_NAMES.get(code, f"🌍 {api_name}")
-                    clean_name = api_name if api_name else f"Country {code}"
-                    
-                    full_list.append({
-                        "name": f"{raw_name} - ₹{final_price:.2f}",
-                        "code": code,
-                        "raw_name": clean_name,
-                        "price": final_price
-                    })
-                
-                if full_list:
-                    full_list.sort(key=lambda x: x["raw_name"])
-                    return full_list
-        except Exception as e:
-            logging.error(f"Error fetching live pricing from API: {e}")
-
-    fallback_list = []
-    for name, price in EXACT_PRices.items():
-        fallback_list.append({
-            "name": f"🌍 {name} - ₹{price:.2f}",
-            "code": "0",
-            "raw_name": name,
-            "price": price
+    # Return the clean master database sorted alphabetically by country name
+    sorted_list = sorted(COUNTRY_DATABASE, key=lambda x: x["name"])
+    formatted_list = []
+    for c in sorted_list:
+        formatted_list.append({
+            "name": f"{c['name']} - ₹{c['price']:.2f}",
+            "code": c["code"],
+            "raw_name": c["name"].split(" ", 1)[1] if " " in c["name"] else c["name"],
+            "price": c["price"]
         })
-    fallback_list.sort(key=lambda x: x["raw_name"])
-    return fallback_list
+    return formatted_list
 
 async def check_user_subscription(user_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
     try:
@@ -569,14 +628,11 @@ async def deduct_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def check_referrals(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Admin command to check who has done how many referrals."""
     if not referral_counts:
         await update.message.reply_text("📊 No referrals recorded yet.", parse_mode="HTML")
         return
 
-    # Sort users by referral count descending
     sorted_refs = sorted(referral_counts.items(), key=lambda x: x[1], reverse=True)
-    
     text = "📊 <b>Referral Leaderboard / Stats:</b>\n\n"
     for uid, count in sorted_refs:
         uname = user_usernames.get(uid, f"ID: {uid}")
@@ -863,7 +919,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
     app.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND, handle_photo_messages))
     app.add_handler(CallbackQueryHandler(button_router))
-    print("🚀 Bot Online with Referral tracking command (/referrals) and ₹2 reward!")
+    print("🚀 Bot Online with Fixed Country Codes and Referral Leaderboard!")
     
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
