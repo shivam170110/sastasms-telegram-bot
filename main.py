@@ -19,7 +19,7 @@ from telegram.ext import (
 # ==========================================
 # 🔑 CREDENTIALS & SETTINGS
 # ==========================================
-BOT_TOKEN = "8849599952:AAHtd5gL1GbWNadv2njQsW5SnqANqJILcfs"
+BOT_TOKEN = "8849599952:AAHH6aFW4YyZKeoT9VubPxIvbIhPjZlA1SQ"
 SASTASMS_API_KEY = "stp_680975d2e24b68ca754ff0b20856d559e345D382bd9ff5ca"
 
 ADMIN_CHANNEL_ID = -1004499634002 
@@ -853,7 +853,12 @@ def run_health_server():
     server.serve_forever()
 
 def main():
+    # 🔧 FIX 1: Manually create and set the event loop for Python 3.14 on Render
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
     threading.Thread(target=run_health_server, daemon=True).start()
+    
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     
     app.add_handler(CommandHandler("start", start))
@@ -866,9 +871,9 @@ def main():
     app.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND, handle_photo_messages))
     app.add_handler(CallbackQueryHandler(button_router))
     
-    print("💎 WHATSAPP VAULT PREMIUM is now Online! Live Dynamic API Routing + 0ms Cache! 💎")
+    print("💎 WHATSAPP VAULT PREMIUM is now Online! Render Python 3.14 Fix Applied! 💎")
     
-    # This prevents the bot from choking on old, stuck clicks when restarted
+    # 🔧 FIX 2: Clear old updates to unfreeze the bot
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
