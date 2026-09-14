@@ -86,12 +86,15 @@ COUNTRY_PRICES = {
     "110": 196.0, "111": 178.0, "112": 40.0, "113": 180.0, "114": 365.0, "115": 234.0, "116": 189.0, "117": 230.0, "118": 204.0, "119": 203.0,
     "120": 150.0, "121": 178.0, "122": 200.0, "123": 198.0, "124": 158.0, "125": 205.0, "126": 196.0, "127": 1134.0, "128": 1098.0, "129": 209.0,
     "130": 189.0, "131": 240.0, "132": 199.0, "133": 199.0, "134": 156.0, "135": 196.0, "136": 205.0, "137": 204.0, "138": 199.0, "139": 197.0,
-    "140": 199.0, "141": 230.0, "142": 257.0, "143": 171.0, "144": 679.0, "145": 198.0, "146": 40.0, "147": 40.0, "148": 40.0, "149": 267.0,
+    "140": 199.0, "141": 230.0, "142": 257.0, "143": 171.0, "144": 679.0, "145": 198.0, "146": 40.0, "147": 40.0, "148": 80.0, "149": 267.0,
     "150": 267.0, "151": 195.0, "152": 198.0, "153": 200.0, "154": 199.0, "155": 140.0, "156": 190.0, "157": 198.0, "158": 197.0, "159": 176.0,
     "160": 189.0, "161": 198.0, "162": 194.0, "163": 149.0, "164": 128.0, "165": 278.0, "166": 190.0, "167": 194.0, "168": 190.0, "169": 194.0,
     "170": 194.0, "171": 190.0, "172": 184.0, "173": 170.0, "174": 204.0, "175": 214.0, "176": 214.0, "177": 194.0, "178": 184.0, "179": 194.0,
     "180": 1040.0, "181": 1040.0, "182": 1940.0, "183": 1040.0, "184": 1940.0, "185": 1940.0, "186": 375.0, "187": 375.0
 }
+# Update any prices originally at 40.0 to 78.0 automatically
+COUNTRY_PRICES = {k: (78.0 if v == 40.0 else v) for k, v in COUNTRY_PRICES.items()}
+
 DEFAULT_PRICE = 250.0  
 
 COUNTRY_NAMES = {
@@ -139,10 +142,8 @@ def get_all_country_list():
     full_list = []
     for code, name in COUNTRY_NAMES.items():
         price = COUNTRY_PRICES.get(code, DEFAULT_PRICE)
-        # Format label to dictionary style: "Afghanistan - ₹640.00" (stripping flag emoji if needed, or keeping cleanly)
         clean_name = name.split(" ", 1)[1] if " " in name else name
         full_list.append({"name": f"{clean_name} - ₹{price:.2f}", "code": code, "raw_name": clean_name, "price": price})
-    # Sort alphabetically dictionary-style
     full_list.sort(key=lambda x: x["raw_name"])
     return full_list
 
@@ -299,7 +300,7 @@ async def show_countries(update: Update, context: ContextTypes.DEFAULT_TYPE, pag
     
     page_countries = all_countries[page * ITEMS_PER_PAGE : (page * ITEMS_PER_PAGE) + ITEMS_PER_PAGE]
     keyboard = []
-    for i in range(0, len(page_countries), 2):  # 2 columns for cleaner layout with dictionary format names
+    for i in range(0, len(page_countries), 2):
         row = []
         for j in range(2):
             if i + j < len(page_countries):
@@ -766,7 +767,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
     app.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND, handle_photo_messages))
     app.add_handler(CallbackQueryHandler(button_router))
-    print("🚀 Bot Online with Dictionary-Style Alphabetical Country Buttons, Deposit Approvals, and Complete Flow!")
+    print("🚀 Bot Online with Updated Prices (40 -> 78), Dictionary-Style Countries, and All Features!")
     
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
