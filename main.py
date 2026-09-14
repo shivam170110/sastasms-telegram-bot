@@ -111,7 +111,6 @@ EXACT_PRices = {
     "Finland": 421.46, "France": 468.29, "Pakistan": 468.29, "New Zealand": 505.75, "Italy": 543.21,
     "Australia": 599.41, "Austria": 636.87, "Taiwan": 878.50, "Singapore": 936.57, "Ireland": 1685.82,
     "Japan": 2200.94, "Gibraltar": 4214.56,
-    # Custom Overrides requested
     "Indonesia": 50.0, "Yemen": 70.0, "Syria": 80.0, "South Africa": 60.0, "USA": 120.0, "India": 187.0
 }
 
@@ -136,10 +135,8 @@ async def get_all_country_list():
                     code = str(c.get("country_code", c.get("id", "0")))
                     api_name = c.get("country", "").strip()
                     
-                    # Match price directly from screen recording mapping dictionary
                     final_price = EXACT_PRices.get(api_name, 150.0)
                     
-                    # Apply specific overrides if matched by code or name
                     if code == "6" or "indonesia" in api_name.lower():
                         final_price = 50.0
                     elif code == "12" or "usa" in api_name.lower():
@@ -169,7 +166,6 @@ async def get_all_country_list():
         except Exception as e:
             logging.error(f"Error fetching live pricing from API: {e}")
 
-    # Fallback list mapping from exact dictionary if API is unreachable
     fallback_list = []
     for name, price in EXACT_PRices.items():
         fallback_list.append({
@@ -207,41 +203,37 @@ class SastaSMSProvider:
         self.base_url = "https://sastasms.pro/stubs/handler_api.php"
 
     async def get_number(self, service: str = "wa", country: str = "0"):
-        # Explicitly request JSON format to prevent parsing glitches with plain text responses
         params = {
             "api_key": self.api_key, 
             "action": "getNumber", 
             "service": service, 
-            "country": country,
+            "country": str(country),
             "format": "json"
         }
         async with httpx.AsyncClient() as client:
             try:
                 response = await client.get(self.base_url, params=params, timeout=15)
                 
-                # Check if response can be parsed as JSON
                 try:
                     data = response.json()
                 except Exception:
                     text = response.text.strip()
-                    # Fallback check if it's standard plain text (e.g. ACCESS_NUMBER:id:number)
                     if text.startswith("ACCESS_NUMBER"):
                         parts = text.split(":")
                         if len(parts) >= 3:
                             return {"status": "SUCCESS", "id": parts[1], "number": parts[2]}
                     return {"status": "ERROR", "message": f"Provider error: {text}"}
 
-                # Handle SastaSMS JSON response structure or fallback standard layout
                 if isinstance(data, dict):
                     if data.get("status") == "OK" or "activation_id" in data or "order_id" in data:
                         activation_id = str(data.get("activation_id") or data.get("order_id"))
                         phone_number = str(data.get("phone_number") or data.get("number"))
                         return {"status": "SUCCESS", "id": activation_id, "number": phone_number}
                     
-                    err_msg = data.get("msg") or data.get("message") or str(data)
+                    err_msg = data.get("msg") or data.get("message") or data.get("error") or "This service is temporarily unavailable."
                     return {"status": "ERROR", "message": f"Provider error: {err_msg}"}
                 
-                return {"status": "ERROR", "message": f"Invalid response format: {response.text}"}
+                return {"status": "ERROR", "message": f"Provider error: {response.text.strip()}"}
 
             except Exception as e: 
                 return {"status": "ERROR", "message": str(e)}
@@ -576,6 +568,26 @@ async def deduct_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="HTML"
     )
 
+async def check_referrals(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin command to check who has done how many referrals."""
+    if not referral_counts:
+        await update.message.reply_text("📊 No referrals recorded yet.", parse_mode="HTML")
+        return
+
+    # Sort users by referral count descending
+    sorted_refs = sorted(referral_counts.items(), key=lambda x: x[1], reverse=True)
+    
+    text = "📊 <b>Referral Leaderboard / Stats:</b>\n\n"
+    for uid, count in sorted_refs:
+        uname = user_usernames.get(uid, f"ID: {uid}")
+        text += f"• <b>{uname}</b> (<code>{uid}</code>): <b>{count}</b> referrals (Earned ₹{count * 2.00:.2f})\n"
+
+    if len(text) > 4096:
+        for x in range(0, len(text), 4096):
+            await update.message.reply_text(text[x:x+4096], parse_mode="HTML")
+    else:
+        await update.message.reply_text(text, parse_mode="HTML")
+
 async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
         await update.message.reply_text("⚠️ <b>Usage:</b> <code>/broadcast Your message here</code>", parse_mode="HTML")
@@ -845,12 +857,13 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("add", add_balance))
     app.add_handler(CommandHandler("deduct", deduct_balance))
+    app.add_handler(CommandHandler("referrals", check_referrals))
     app.add_handler(CommandHandler("broadcast", broadcast))
     app.add_handler(CommandHandler("send", send_to_user))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
     app.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND, handle_photo_messages))
     app.add_handler(CallbackQueryHandler(button_router))
-    print("🚀 Bot Online with Fixed JSON/Text Response Parsing & Robust Error Handlers!")
+    print("🚀 Bot Online with Referral tracking command (/referrals) and ₹2 reward!")
     
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
