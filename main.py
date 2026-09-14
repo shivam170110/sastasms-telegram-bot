@@ -22,14 +22,10 @@ from telegram.ext import (
 BOT_TOKEN = "8849599952:AAHtd5gL1GbWNadv2njQsW5SnqANqJILcfs"
 SASTASMS_API_KEY = "stp_680975d2e24b68ca754ff0b20856d559e345D382bd9ff5ca"
 
-# Your private admin channel ID for deposit requests and start notifications
 ADMIN_CHANNEL_ID = -1004499634002 
 SUPPORT_USERNAME = "@WSPCS01"
-
-# Your public force subscription channel username
 FORCE_SUB_CHANNEL = "@WHATSAPP_VAULT" 
 
-# JSONBin.io Cloud Storage Credentials
 JSONBIN_BIN_ID = "6aa58b12ffd5d16053fef63e"
 JSONBIN_API_KEY = "$2a$10$1mqlsEiBEOr8/LOpCc09aeebMqgiBoKPuKYAnmvmeRomHUv1wJ7WK"
 
@@ -143,7 +139,11 @@ def get_all_country_list():
     full_list = []
     for code, name in COUNTRY_NAMES.items():
         price = COUNTRY_PRICES.get(code, DEFAULT_PRICE)
-        full_list.append({"name": f"{name} - ₹{price:.2f}", "code": code, "raw_name": name, "price": price})
+        # Format label to dictionary style: "Afghanistan - ₹640.00" (stripping flag emoji if needed, or keeping cleanly)
+        clean_name = name.split(" ", 1)[1] if " " in name else name
+        full_list.append({"name": f"{clean_name} - ₹{price:.2f}", "code": code, "raw_name": clean_name, "price": price})
+    # Sort alphabetically dictionary-style
+    full_list.sort(key=lambda x: x["raw_name"])
     return full_list
 
 async def check_user_subscription(user_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
@@ -214,6 +214,30 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if user_id not in user_usernames:
         user_usernames[user_id] = username
+        
+        if context.args and len(context.args) > 0:
+            arg = context.args[0]
+            if arg.startswith("ref_") and user_id not in user_referrers:
+                try:
+                    referrer_id = int(arg.split("_")[1])
+                    if referrer_id != user_id:
+                        user_referrers[user_id] = referrer_id
+                        referral_counts[referrer_id] = referral_counts.get(referrer_id, 0) + 1
+                        
+                        current_ref_bal = user_balances.get(referrer_id, 0.0)
+                        user_balances[referrer_id] = current_ref_bal + 5.0
+                        
+                        try:
+                            await context.bot.send_message(
+                                chat_id=referrer_id,
+                                text=f"🎉 <b>Referral Bonus Earned!</b>\n\nA new user joined via your link. ₹5.00 has been added to your balance.\nNew Balance: ₹{user_balances[referrer_id]:.2f}",
+                                parse_mode="HTML"
+                            )
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+
         save_data_sync(user_balances, user_referrers, referral_counts, user_usernames)
         try:
             await context.bot.send_message(
@@ -223,18 +247,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         except Exception:
             pass
-
-    if context.args and len(context.args) > 0:
-        arg = context.args[0]
-        if arg.startswith("ref_") and user_id not in user_referrers:
-            try:
-                referrer_id = int(arg.split("_")[1])
-                if referrer_id != user_id:
-                    user_referrers[user_id] = referrer_id
-                    referral_counts[referrer_id] = referral_counts.get(referrer_id, 0) + 1
-                    save_data_sync(user_balances, user_referrers, referral_counts, user_usernames)
-            except Exception:
-                pass
 
     is_subbed = await check_user_subscription(user_id, context)
     if not is_subbed:
@@ -287,12 +299,12 @@ async def show_countries(update: Update, context: ContextTypes.DEFAULT_TYPE, pag
     
     page_countries = all_countries[page * ITEMS_PER_PAGE : (page * ITEMS_PER_PAGE) + ITEMS_PER_PAGE]
     keyboard = []
-    for i in range(0, len(page_countries), 3):
+    for i in range(0, len(page_countries), 2):  # 2 columns for cleaner layout with dictionary format names
         row = []
-        for j in range(3):
+        for j in range(2):
             if i + j < len(page_countries):
                 c = page_countries[i + j]
-                row.append(InlineKeyboardButton(c["raw_name"], callback_data=f"prep_buy_{c['code']}_{c['price']}"))
+                row.append(InlineKeyboardButton(c["name"], callback_data=f"prep_buy_{c['code']}_{c['price']}"))
         keyboard.append(row)
 
     nav_row = []
@@ -362,9 +374,9 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
 
         keyboard = []
         for i in range(0, len(matching), 2):
-            row = [InlineKeyboardButton(matching[i]["raw_name"], callback_data=f"prep_buy_{matching[i]['code']}_{matching[i]['price']}")]
+            row = [InlineKeyboardButton(matching[i]["name"], callback_data=f"prep_buy_{matching[i]['code']}_{matching[i]['price']}")]
             if i + 1 < len(matching):
-                row.append(InlineKeyboardButton(matching[i+1]["raw_name"], callback_data=f"prep_buy_{matching[i+1]['code']}_{matching[i+1]['price']}"))
+                row.append(InlineKeyboardButton(matching[i+1]["name"], callback_data=f"prep_buy_{matching[i+1]['code']}_{matching[i+1]['price']}"))
             keyboard.append(row)
         keyboard.append([InlineKeyboardButton("🔙 Back to Menu", callback_data="main_menu")])
         
@@ -390,17 +402,13 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
         ref_link = f"https://t.me/{bot_username}?start=ref_{user_id}"
         refs = referral_counts.get(user_id, 0)
         text_msg = (
-            f"👥 <b>Refer & Earn Milestones</b>\n\n"
-            f"Invite valid users to unlock free accounts:\n"
-            f"• <b>25 Referrals:</b> Free Colombian Account 🇨🇴\n"
-            f"• <b>40 Referrals:</b> Free USA Account 🇺🇸\n"
-            f"• <b>50 Referrals:</b> Free Indian Account 🇮🇳\n"
-            f"• <b>More than 50?</b> Contact Support for custom rewards!\n\n"
-            f"⚠️ <i>Make sure you have done valid referrals! For redeem, contact customer support.</i>\n\n"
-            f"📊 <b>Your Total Valid Referrals:</b> {refs}\n\n"
+            f"👥 <b>Refer & Earn Program</b>\n\n"
+            f"Earn <b>₹5.00</b> directly into your balance for every unique user who starts the bot using your referral link!\n\n"
+            f"📊 <b>Your Total Valid Referrals:</b> {refs}\n"
+            f"💰 <b>Total Earned:</b> ₹{refs * 5.00:.2f}\n\n"
             f"🔗 <b>Your Referral Link:</b>\n<code>{ref_link}</code>"
         )
-        await update.message.reply_text(text_msg, parse_mode="HTML", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("💬 Contact Support", url=f"https://t.me/{SUPPORT_USERNAME.lstrip('@')}"), InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]]))
+        await update.message.reply_text(text_msg, parse_mode="HTML", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]]))
     elif text == "💬 Support":
         await update.message.reply_text(f"📞 <b>Contact Support:</b> {SUPPORT_USERNAME}", parse_mode="HTML")
 
@@ -558,16 +566,13 @@ async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ref_link = f"https://t.me/{bot_username}?start=ref_{user_id}"
         refs = referral_counts.get(user_id, 0)
         text_msg = (
-            f"👥 <b>Refer & Earn Milestones</b>\n\n"
-            f"• <b>25 Referrals:</b> Free Colombian Account 🇨🇴\n"
-            f"• <b>40 Referrals:</b> Free USA Account 🇺🇸\n"
-            f"• <b>50 Referrals:</b> Free Indian Account 🇮🇳\n"
-            f"• <b>More:</b> Contact Support 💬\n\n"
-            f"⚠️ <i>Make sure you have done valid referrals! For redeem, contact customer support.</i>\n\n"
-            f"📊 <b>Your Total Valid Referrals:</b> {refs}\n\n"
+            f"👥 <b>Refer & Earn Program</b>\n\n"
+            f"Earn <b>₹5.00</b> directly into your balance for every unique user who starts the bot using your referral link!\n\n"
+            f"📊 <b>Your Total Valid Referrals:</b> {refs}\n"
+            f"💰 <b>Total Earned:</b> ₹{refs * 5.00:.2f}\n\n"
             f"🔗 <b>Your Referral Link:</b>\n<code>{ref_link}</code>"
         )
-        await safe_send_or_edit(update, context, text_msg, InlineKeyboardMarkup([[InlineKeyboardButton("💬 Contact Support", url=f"https://t.me/{SUPPORT_USERNAME.lstrip('@')}"), InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]]))
+        await safe_send_or_edit(update, context, text_msg, InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]]))
     
     elif data.startswith("approve_"):
         parts = data.split("_")
@@ -761,7 +766,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
     app.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND, handle_photo_messages))
     app.add_handler(CallbackQueryHandler(button_router))
-    print("🚀 Bot Online with Photo Proof Deposit Verification, Interactive Approve/Reject, and Complete Order Flow!")
+    print("🚀 Bot Online with Dictionary-Style Alphabetical Country Buttons, Deposit Approvals, and Complete Flow!")
     
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
