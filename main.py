@@ -760,7 +760,7 @@ async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         order_id = data.split("_")[2]
         order = active_orders.get(order_id)
         if not order:
-            await query.answer("❌ Order not found or already closed.", show_answer=True) if hasattr(query, "answer") else None
+            await query.answer("❌ Order not found or already closed.", show_alert=True)
             return
 
         elapsed = time.time() - order["time"]
