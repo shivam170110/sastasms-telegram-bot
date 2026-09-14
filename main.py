@@ -71,29 +71,6 @@ user_balances, user_referrers, referral_counts, user_usernames = load_data_sync(
 active_orders = {}  
 ITEMS_PER_PAGE = 15  
 
-COUNTRY_PRICES = {
-    "0": 250.0, "1": 189.0, "2": 312.0, "3": 250.0, "4": 250.0, "5": 187.0, "6": 50.0, "7": 147.0, "8": 159.0, "9": 132.0,
-    "10": 99.0, "11": 196.0, "12": 115.0, "13": 314.0, "14": 156.0, "15": 186.0, "16": 185.0, "17": 256.0, "18": 98.0, "19": 199.0,
-    "20": 167.0, "21": 173.0, "22": 179.0, "23": 3204.0, "24": 213.0, "25": 190.0, "26": 143.0, "27": 199.0, "28": 175.0, "29": 234.0,
-    "30": 156.0, "31": 132.0, "32": 213.0, "33": 75.0, "34": 195.0, "35": 145.0, "36": 112.0, "37": 89.0, "38": 140.0, "39": 178.0,
-    "40": 189.0, "41": 168.0, "42": 157.0, "43": 360.0, "44": 234.0, "45": 297.0, "46": 256.0, "47": 167.0, "48": 189.0, "49": 198.0,
-    "50": 309.0, "51": 178.0, "52": 176.0, "53": 189.0, "54": 250.0, "55": 781.0, "56": 180.0, "57": 230.0, "58": 178.0, "59": 198.0,
-    "60": 130.0, "61": 340.0, "62": 176.0, "63": 198.0, "64": 178.0, "65": 671.0, "66": 990.0, "67": 156.0, "68": 139.0, "69": 40.0,
-    "70": 187.0, "71": 178.0, "72": 158.0, "73": 167.0, "74": 199.0, "75": 40.0, "76": 193.0, "77": 173.0, "78": 212.0, "79": 245.0,
-    "80": 999.0, "81": 179.0, "82": 640.0, "83": 198.0, "84": 654.0, "85": 290.0, "86": 599.0, "87": 456.0, "88": 210.0, "89": 245.0,
-    "90": 350.0, "91": 190.0, "92": 560.0, "93": 198.0, "94": 190.0, "95": 225.0, "96": 234.0, "97": 40.0, "98": 230.0, "99": 190.0,
-    "100": 200.0, "101": 245.0, "102": 234.0, "103": 304.0, "104": 250.0, "105": 168.0, "106": 1472.0, "107": 250.0, "108": 198.0, "109": 234.0,
-    "110": 196.0, "111": 178.0, "112": 40.0, "113": 180.0, "114": 365.0, "115": 234.0, "116": 189.0, "117": 230.0, "118": 204.0, "119": 203.0,
-    "120": 150.0, "121": 178.0, "122": 200.0, "123": 198.0, "124": 158.0, "125": 205.0, "126": 196.0, "127": 1134.0, "128": 1098.0, "129": 209.0,
-    "130": 189.0, "131": 240.0, "132": 199.0, "133": 199.0, "134": 156.0, "135": 196.0, "136": 205.0, "137": 204.0, "138": 199.0, "139": 197.0,
-    "140": 199.0, "141": 230.0, "142": 257.0, "143": 171.0, "144": 679.0, "145": 198.0, "146": 40.0, "147": 40.0, "148": 40.0, "149": 267.0,
-    "150": 267.0, "151": 195.0, "152": 198.0, "153": 200.0, "154": 199.0, "155": 140.0, "156": 190.0, "157": 198.0, "158": 197.0, "159": 176.0,
-    "160": 189.0, "161": 198.0, "162": 194.0, "163": 149.0, "164": 128.0, "165": 278.0, "166": 190.0, "167": 194.0, "168": 190.0, "169": 194.0,
-    "170": 194.0, "171": 190.0, "172": 184.0, "173": 170.0, "174": 204.0, "175": 214.0, "176": 214.0, "177": 194.0, "178": 184.0, "179": 194.0,
-    "180": 1040.0, "181": 1040.0, "182": 1940.0, "183": 1040.0, "184": 1940.0, "185": 1940.0, "186": 375.0, "187": 375.0
-}
-COUNTRY_PRICES = {k: (78.0 if v == 40.0 else v) for k, v in COUNTRY_PRICES.items()}
-
 DEFAULT_PRICE = 250.0  
 
 COUNTRY_NAMES = {
@@ -137,14 +114,60 @@ COUNTRY_NAMES = {
     "185": "🇭🇰 Hong Kong", "186": "🇲🇴 Macau", "187": "🇸🇬 Singapore"
 }
 
-def get_all_country_list():
-    full_list = []
+async def get_all_country_list():
+    url = "https://sastasms.pro/stubs/handler_api.php"
+    params = {"api_key": SASTASMS_API_KEY, "action": "getServicesList", "service": "wa", "format": "json"}
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(url, params=params, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                countries_data = data.get("countries", [])
+                
+                full_list = []
+                for c in countries_data:
+                    code = str(c.get("country_code", c.get("id", "0")))
+                    base_price = float(c.get("price", DEFAULT_PRICE))
+                    
+                    # Apply 1.4x profit multiplier automatically
+                    final_price = base_price * 1.4
+                    
+                    # Specific overrides (Indonesia ₹50, USA ₹115)
+                    if code == "6":
+                        final_price = 50.0
+                    elif code == "12":
+                        final_price = 115.0
+
+                    raw_name = COUNTRY_NAMES.get(code, f"🌍 Country {code}")
+                    clean_name = raw_name.split(" ", 1)[1] if " " in raw_name else raw_name
+                    
+                    full_list.append({
+                        "name": f"{raw_name} - ₹{final_price:.2f}",
+                        "code": code,
+                        "raw_name": clean_name,
+                        "price": final_price
+                    })
+                
+                if full_list:
+                    full_list.sort(key=lambda x: x["raw_name"])
+                    return full_list
+        except Exception as e:
+            logging.error(f"Error fetching live pricing from API: {e}")
+
+    # Fallback static list if API query fails
+    fallback_list = []
     for code, name in COUNTRY_NAMES.items():
-        price = COUNTRY_PRICES.get(code, DEFAULT_PRICE)
-        # Keeping flag emoji included with name for buttons
-        full_list.append({"name": f"{name} - ₹{price:.2f}", "code": code, "raw_name": name, "price": price})
-    full_list.sort(key=lambda x: x["raw_name"])
-    return full_list
+        final_price = DEFAULT_PRICE * 1.4
+        if code == "6":
+            final_price = 50.0
+        elif code == "12":
+            final_price = 115.0
+            
+        clean_name = name.split(" ", 1)[1] if " " in name else name
+        fallback_list.append({"name": f"{name} - ₹{final_price:.2f}", "code": code, "raw_name": clean_name, "price": final_price})
+    fallback_list.sort(key=lambda x: x["raw_name"])
+    return fallback_list
 
 async def check_user_subscription(user_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
     try:
@@ -293,7 +316,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await safe_send_or_edit(update, context, f"👋 Welcome, <b>{user.first_name}</b>!\n\nSelect an option below:", InlineKeyboardMarkup(inline_keyboard))
 
 async def show_countries(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int = 0):
-    all_countries = get_all_country_list()
+    all_countries = await get_all_country_list()
     total_pages = max(1, (len(all_countries) + ITEMS_PER_PAGE - 1) // ITEMS_PER_PAGE)
     page = max(0, min(page, total_pages - 1))
     
@@ -365,7 +388,7 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
     if context.user_data.get("awaiting_search"):
         query_text = update.message.text.strip().lower()
         context.user_data["awaiting_search"] = False
-        all_countries = get_all_country_list()
+        all_countries = await get_all_country_list()
         matching = [c for c in all_countries if query_text in c["raw_name"].lower()]
         
         if not matching:
@@ -531,6 +554,20 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"• <b>Failed / Blocked:</b> {failed_count}",
         parse_mode="HTML"
     )
+
+async def send_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if len(context.args) < 2:
+        await update.message.reply_text("⚠️ <b>Usage:</b> <code>/send user_id Your message</code>", parse_mode="HTML")
+        return
+
+    try:
+        target_user_id = int(context.args[0])
+        message_text = " ".join(context.args[1:])
+        
+        await context.bot.send_message(chat_id=target_user_id, text=message_text, parse_mode="HTML")
+        await update.message.reply_text(f"✅ Message successfully sent to <code>{target_user_id}</code>!", parse_mode="HTML")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Failed to send message: {e}")
 
 async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -723,7 +760,7 @@ async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         order_id = data.split("_")[2]
         order = active_orders.get(order_id)
         if not order:
-            await query.answer("❌ Order not found or already closed.", show_alert=True)
+            await query.answer("❌ Order not found or already closed.", show_answer=True) if hasattr(query, "answer") else None
             return
 
         elapsed = time.time() - order["time"]
@@ -763,10 +800,11 @@ def main():
     app.add_handler(CommandHandler("add", add_balance))
     app.add_handler(CommandHandler("deduct", deduct_balance))
     app.add_handler(CommandHandler("broadcast", broadcast))
+    app.add_handler(CommandHandler("send", send_to_user))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
     app.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND, handle_photo_messages))
     app.add_handler(CallbackQueryHandler(button_router))
-    print("🚀 Bot Online with Country Flags Included, Indonesia (₹50), USA (₹115), and All Features!")
+    print("🚀 Bot Online with 1.4x Dynamic Live Pricing, Flags, Direct /send Messaging, and All Features!")
     
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
